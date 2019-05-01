@@ -1,0 +1,58 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "com.keenmate.chat";
+option java_outer_classname = "ChatProto";
+option objc_class_prefix = "HLW";
+
+package com.keenmate.chat_01;
+
+import "Common.proto";
+import "User.proto";
+
+service ChatProvider {
+	rpc CreateRoom(Room) returns (Room);
+	rpc JoinRoom(JoinRoomRequest) returns (stream ChatChange);
+	rpc RoomsHook(Empty) returns (stream Room);
+
+	rpc SendMessage(Message) returns (Message);
+}
+
+message JoinRoomRequest {
+	int32 roomId = 1;
+	Client client = 2;
+}
+
+message Room {
+	int32 roomId = 1;
+	string title = 2;
+	repeated Client clients = 3;
+	bool private = 5; // whether the room is intended for just p2p communication
+}
+
+message ChatChange {
+	oneof theChange {
+		Message msg = 1;
+		MessageUpdate updated = 2;
+	}
+}
+
+message Message {
+	int32 messageId = 1;
+	int32 sourceId = 2;
+	reserved 3;
+	int32 roomId = 4;
+	string content = 5;
+	int64 sent = 6;
+}
+
+message MessageUpdate {
+	int32 messageId = 1;
+	oneof updated {
+		bool seen = 2; // target client has seen massage
+		bool received = 3; // target client received message
+		string content = 5;
+	}
+	reserved "sent"; // server received message
+	reserved 4;
+}
