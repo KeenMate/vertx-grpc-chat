@@ -1,7 +1,7 @@
-package com.keenmate.chat_01.models
+package com.keenmate.chat.models
 
-import com.keenmate.chat_01.Room
-import com.keenmate.chat_01.models.base.IModel
+import com.keenmate.chat.Room
+import com.keenmate.chat.models.base.IModel
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
@@ -26,7 +26,6 @@ class RoomModel: IModel<Room> {
 	override fun parseFrom(src: Room): RoomModel {
 		roomId = src.roomId
 		title = src.title
-		clients = src.clientsList.map { ClientModel().parseFrom(it) }
 		private = src.private
 		
 		return this
@@ -37,7 +36,6 @@ class RoomModel: IModel<Room> {
 			.setRoomId(roomId)
 			.setTitle(title)
 			.setPrivate(private)
-			.addAllClients(clients.map { it.convert() })
 			.build()
 	}
 

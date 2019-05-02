@@ -1,4 +1,4 @@
-package com.keenmate.chat_01
+package com.keenmate.chat
 
 class Constants {
 	class Dao {

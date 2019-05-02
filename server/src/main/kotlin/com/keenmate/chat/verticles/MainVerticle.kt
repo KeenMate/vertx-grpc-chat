@@ -1,4 +1,4 @@
-package com.keenmate.chat_01.verticles
+package com.keenmate.chat.verticles
 
 import io.reactivex.Observable
 import io.vertx.core.*
@@ -20,7 +20,7 @@ class MainVerticle : AbstractVerticle() {
 		})
 		
 		futures.add(Future.future<Unit> { f ->
-			vertx.deployVerticle("com.keenmate.chat_01.verticles.ChatVerticle") {
+			vertx.deployVerticle("com.keenmate.chat.verticles.ChatVerticle") {
 				println("Verticle ${it.result()} successfully deployed")
 				
 				f.complete()

@@ -1,7 +1,7 @@
-package com.keenmate.chat_01.verticles
+package com.keenmate.chat.verticles
 
-import com.keenmate.chat_01.services.ChatServiceImpl
-import com.keenmate.chat_01.services.UserServiceImpl
+import com.keenmate.chat.services.ChatServiceImpl
+import com.keenmate.chat.services.UserServiceImpl
 import io.vertx.core.AbstractVerticle
 import io.vertx.core.Future
 import io.vertx.grpc.VertxServerBuilder

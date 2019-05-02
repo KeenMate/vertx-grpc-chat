@@ -1,5 +1,6 @@
 import { Subject } from 'rxjs'
 import { interval } from 'rxjs'
+import m from 'moment'
 
 import { UserProviderClient } from './grpc/User_grpc_web_pb'
 import { ChatProviderClient } from './grpc/Chat_grpc_web_pb'
@@ -11,13 +12,16 @@ export default {
 		user: null,
 		userProvider: new UserProviderClient(hostAddress, undefined, undefined),
 		chatProvider: new ChatProviderClient(hostAddress, undefined, undefined),
-		updaterSubject: interval(60000),
+		updaterSubject: interval(60000).subscribe(x => {
+			this.messages.forEach(msg => {
+				msg.sentText = m(msg.sent).fromNow()
+			})
+		}),
 		rooms: [],
 		connectedRooms: [],
 		clients: [],
 		messages: new Subject(),
 		messagesObservers: {},
-		updaterObservers: {}
 	},
 	mutations: {
 		setUser (state, user) {
@@ -35,10 +39,6 @@ export default {
 		addMessageObserver (state, roomid, observer) {
 			(state.messagesObservers[roomid] = state.messagesObservers[roomid] || [])
 				.push(observer)
-		},
-		addUpdaterObserver (state, observer) {
-			(state.updaterObservers[roomid] = state.updaterObservers[roomid] || [])
-			.push(observer)
 		}
 	}
 }

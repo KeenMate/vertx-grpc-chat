@@ -1,12 +1,11 @@
-package com.keenmate.chat_01.services
+package com.keenmate.chat.services
 
-import com.keenmate.chat_01.*
-import com.keenmate.chat_01.models.*
+import com.keenmate.chat.*
+import com.keenmate.chat.models.*
 import io.grpc.stub.StreamObserver
 import io.vertx.core.Future
 import io.vertx.core.Vertx
 import io.vertx.core.eventbus.EventBus
-import scala.collection.immutable.Stream
 
 class ChatServiceImpl(private val vertx: Vertx) : ChatProviderGrpc.ChatProviderImplBase() {
 	private val eventBus: EventBus = this.vertx.eventBus()
@@ -42,7 +41,7 @@ class ChatServiceImpl(private val vertx: Vertx) : ChatProviderGrpc.ChatProviderI
 			eventBus.consumer<String>(Constants.Dao.MessageAdded) {
 				val parsed = MessageModel().parseFrom(it.body())
 				
-				if (parsed.roomId == request.roomId) {
+				if (parsed.room != null && parsed.room!!.roomId == request.room.roomId) {
 					val chatChangeModel = ChatChangeModel()
 					
 					chatChangeModel.msg = parsed
@@ -82,7 +81,7 @@ class ChatServiceImpl(private val vertx: Vertx) : ChatProviderGrpc.ChatProviderI
 		}
 	}
 
-	override fun sendMessage(request: Message?, responseObserver: StreamObserver<Message>?) {
-		eventBus.send(Constants.Dao.AddMessage, MessageModel().parseFrom(request!!).toString())
+	override fun sendMessage(request: ChatChange?, responseObserver: StreamObserver<Empty>?) {
+		eventBus.send(Constants.Dao.AddMessage, ChatChangeModel().parseFrom(request!!).toString())
 	}
 }

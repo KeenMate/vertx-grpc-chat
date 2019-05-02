@@ -1,19 +1,16 @@
-package com.keenmate.chat_01.verticles
+package com.keenmate.chat.verticles
 
-import com.keenmate.chat_01.Constants
-import com.keenmate.chat_01.Room
-import com.keenmate.chat_01.models.ClientModel
-import com.keenmate.chat_01.models.JoinRoomRequestModel
-import com.keenmate.chat_01.models.MessageModel
-import com.keenmate.chat_01.models.RoomModel
-import io.reactivex.disposables.Disposable
+import com.keenmate.chat.Constants
+import com.keenmate.chat.Room
+import com.keenmate.chat.models.ClientModel
+import com.keenmate.chat.models.JoinRoomRequestModel
+import com.keenmate.chat.models.MessageModel
+import com.keenmate.chat.models.RoomModel
 import io.reactivex.subjects.ReplaySubject
 import io.vertx.core.AbstractVerticle
-import io.vertx.core.CompositeFuture
 import io.vertx.core.Future
 import io.vertx.core.eventbus.EventBus
 import io.vertx.core.eventbus.MessageConsumer
-import io.vertx.core.impl.CompositeFutureImpl
 import java.time.LocalDateTime
 import java.time.ZoneOffset
 import java.util.*
@@ -46,7 +43,8 @@ class DaoVerticle(private val eventBus: EventBus) : AbstractVerticle() {
 						.forEach {
 							val casted = (it as MessageModel)
 
-							if (casted.roomId != joinRoomRequestModel.roomId)
+							if (casted.room != null && joinRoomRequestModel.room != null &&
+								casted.room!!.roomId != joinRoomRequestModel.room!!.roomId)
 								return@forEach
 
 							tmpPublisher.send(casted.toString())

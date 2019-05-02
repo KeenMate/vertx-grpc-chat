@@ -72,7 +72,7 @@
 				const joinRoomPayload = new JoinRoomRequest()
 
 				joinRoomPayload.setClient(this.state.user.$jspbMessageInstance)
-				joinRoomPayload.setRoomid(room.roomid)
+				joinRoomPayload.setRoom(room.$jspbMessageInstance)
 
 				const roomMessagesServerStream = this.state.chatProvider.joinRoom(joinRoomPayload)
 
@@ -80,16 +80,14 @@
 				
 				this.$store.commit('addMessageObserver', room.roomid, this.state.messages
 					.pipe(
-						filter(x => x.roomid === room.roomid)
+						filter(x => x.room.roomid === room.roomid)
 					).subscribe(x => {
-						x.author = this.state.clients.find(c => c.clientid === x.sourceid)
-	
 						this.$store.commit()
 
-						this.$store.commit('addUpdaterObserver', this.state
-							.updaterSubject
-							.subscribe(() => x.sentText = (m(x.sent).fromNow()))
-						)
+						// this.$store.commit('addUpdaterObserver', this.state
+						// 	.updaterSubject
+						// 	.subscribe(() => x.sentText = (m(x.sent).fromNow()))
+						// )
 	
 						(room.messges = room.messages || [])
 							.push(x)

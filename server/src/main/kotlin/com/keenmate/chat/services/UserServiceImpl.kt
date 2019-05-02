@@ -1,8 +1,8 @@
-package com.keenmate.chat_01.services
+package com.keenmate.chat.services
 
-import com.keenmate.chat_01.*
-import com.keenmate.chat_01.models.ClientModel
-import com.keenmate.chat_01.models.ConnectRequestModel
+import com.keenmate.chat.*
+import com.keenmate.chat.models.ClientModel
+import com.keenmate.chat.models.ConnectRequestModel
 import io.grpc.stub.StreamObserver
 import io.vertx.core.Future
 import io.vertx.core.Vertx

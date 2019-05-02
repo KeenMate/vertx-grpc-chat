@@ -3,7 +3,10 @@
 		<div class="ui dividing header">
 			{{title}}
 		</div>
-		<div
+		<Message v-for="msg in room.messages" :key="msg.messageid"
+		         :msg="msg"
+		         :edit-visible="msg.author.clientid === state.user.clientid"/>
+		<!--<div
 			class="comment"
 			v-for="msg in room.messages" :key="msg.messageid">
 			<div class="content">
@@ -19,18 +22,28 @@
 					{{ msg.content }}
 				</div>
 			</div>
-		</div>
+		</div>-->
 	</div>
 </template>
 
 <script>
+	import Message from './message.vue'
+	
 	export default {
 		name: 'chat',
+		components: {
+			Message
+		},
 		props: [
 			'title',
 			'room',
 			'updater'
-		]
+		],
+		data () {
+			return {
+				state: this.$store.state
+			}
+		}
 	}
 </script>
 

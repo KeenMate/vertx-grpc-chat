@@ -1,7 +1,7 @@
-package com.keenmate.chat_01.models
+package com.keenmate.chat.models
 
-import com.keenmate.chat_01.ConnectRequest
-import com.keenmate.chat_01.models.base.IModel
+import com.keenmate.chat.ConnectRequest
+import com.keenmate.chat.models.base.IModel
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 

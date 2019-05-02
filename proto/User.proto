@@ -5,7 +5,7 @@ option java_package = "com.keenmate.chat";
 option java_outer_classname = "UserProto";
 option objc_class_prefix = "HLW";
 
-package com.keenmate.chat_01;
+package com.keenmate.chat;
 
 import "Common.proto";
 

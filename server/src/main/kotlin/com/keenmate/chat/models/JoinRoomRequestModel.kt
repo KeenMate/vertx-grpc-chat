@@ -1,18 +1,18 @@
-package com.keenmate.chat_01.models
+package com.keenmate.chat.models
 
-import com.keenmate.chat_01.JoinRoomRequest
-import com.keenmate.chat_01.models.base.IModel
+import com.keenmate.chat.JoinRoomRequest
+import com.keenmate.chat.models.base.IModel
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
 @Serializable
 class JoinRoomRequestModel: IModel<JoinRoomRequest> {
-	var roomId: Int = 0
+	var room: RoomModel? = null
 	var client: ClientModel? = null
 	
 	override fun convert(): JoinRoomRequest {
 		val joinRoomRequestBuilder = JoinRoomRequest.newBuilder()
-			.setRoomId(roomId)
+			.setRoom(room!!.convert())
 		
 		if (client != null)
 			joinRoomRequestBuilder.client = client!!.convert()
@@ -23,14 +23,14 @@ class JoinRoomRequestModel: IModel<JoinRoomRequest> {
 	override fun parseFrom(src: String): JoinRoomRequestModel {
 		val tmp = Json.parse(serializer(), src)
 		
-		roomId = tmp.roomId
+		room = tmp.room
 		client = tmp.client
 		
 		return this
 	}
 
 	override fun parseFrom(src: JoinRoomRequest): JoinRoomRequestModel {
-		roomId = src.roomId
+		room = RoomModel().parseFrom(src.room)
 		client = ClientModel().parseFrom(src.client)
 		
 		return this

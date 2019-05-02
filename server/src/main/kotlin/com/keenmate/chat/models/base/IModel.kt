@@ -1,4 +1,4 @@
-package com.keenmate.chat_01.models.base
+package com.keenmate.chat.models.base
 
 interface IModel<TTarget> {
 	fun convert(): TTarget
