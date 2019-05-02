@@ -1,4 +1,4 @@
-# chat-01-client
+# Client-side of Vertx-gRPC chat
 
 ## Project setup
 ```
