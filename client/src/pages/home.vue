@@ -16,15 +16,15 @@
 				<h4 class="ui header" v-if="state.connectedRooms.length > 0">
 					Connected rooms
 				</h4>
-				<List :items="state.connectedRooms" key-prop="roomid" v-slot="{ item }">
+				<List :items="state.connectedRooms" key-prop="roomid" v-slot="{ item }" @click="onRoomClick">
 					<a class="header">
 						{{item.title}}
 					</a>
 				</List>
-				<h4 class="ui header" v-if="state.rooms.length > 0">
+				<h4 class="ui header">
 					Available rooms
 				</h4>
-				<List :items="state.rooms" key-prop="roomid" v-slot="{ item }" @click="joinRoomClicked">
+				<List :items="state.rooms" key-prop="roomid" v-slot="{ item }" @click="onRoomClick">
 					<a class="header">
 						{{item.title}}
 					</a>
@@ -32,12 +32,13 @@
 			</div>
 			<div class="ui twelve wide column">
 				<!-- Connected rooms + chat window-->
-				<div class="ui divided grid">
+				<div class="ui divided grid" v-if="state.currentRoomId !== 0">
 					<div class="ui row">
 						<!-- Chat -->
 						<div class="column">
-							<div class="chat-spacer"></div>
-							<p class="chat-content" v-text=""></p>
+							<!--<div class="chat-spacer"></div>-->
+							<!--<p class="chat-content" v-text=""></p>-->
+							<Chat :room="state.rooms.find(x => x.roomid === state.currentRoomId)" @send="onSend" />
 						</div>
 					</div>
 				</div>
@@ -52,15 +53,17 @@
 	
 	import List from '../components/list.vue'
 	import NewRoomModal from '../components/new-room-modal.vue'
+	import Chat from '../components/chat/chat.vue'
 
 	import { Empty } from '../grpc/Common_pb'
-	import { JoinRoomRequest, Room } from '../grpc/Chat_pb'
+	import { JoinRoomRequest, Room, Message, ChatChange } from '../grpc/Chat_pb'
 
 	export default {
 		name: 'HomePage',
 		components: {
 			List,
-			NewRoomModal
+			NewRoomModal,
+			Chat
 		},
 		data () {
 			return {
@@ -68,6 +71,31 @@
 			}
 		},
 		methods: {
+			onSend (newMsgContent) {
+				const msgPayload = new Message()
+				msgPayload.setContent(newMsgContent)
+				msgPayload.setCreator(this.state.user.$jspbMessageInstance)
+				msgPayload.setRoom(
+					this.state
+					.rooms
+					.find(x => x.roomid === this.state.currentRoomId).$jspbMessageInstance
+				)
+				
+				this.state.chatProvider.sendMessage(msgPayload, {}, (err, data) => {
+					console.log('message successfully sent', data)
+				})
+			},
+			onRoomClick (room) {
+				let foundRoom = this.state.connectedRooms.find(x => x.roomid === room.roomid)
+				
+				if (foundRoom) {
+					// todo: switch to selected room
+					this.$store.commit('setCurrentRoom', foundRoom)
+				} else {
+					// todo: join to selected room
+					this.joinRoomClicked(room)
+				}
+			},
 			joinRoomClicked (room) {
 				const joinRoomPayload = new JoinRoomRequest()
 
@@ -77,36 +105,42 @@
 				const roomMessagesServerStream = this.state.chatProvider.joinRoom(joinRoomPayload)
 
 				this.$store.commit('addConnectedRoom', room)
-				
-				this.$store.commit('addMessageObserver', room.roomid, this.state.messages
-					.pipe(
-						filter(x => x.room.roomid === room.roomid)
-					).subscribe(x => {
-						this.$store.commit()
-
-						// this.$store.commit('addUpdaterObserver', this.state
-						// 	.updaterSubject
-						// 	.subscribe(() => x.sentText = (m(x.sent).fromNow()))
-						// )
-	
-						(room.messges = room.messages || [])
-							.push(x)
-					})
-				)
+				this.$store.commit('setCurrentRoom', room)
 
 				roomMessagesServerStream.on('data', response => {
-					this.state.messages.next(response.toObject(true))
+					const parsedResponse = response.toObject(true)
+					
+					console.log(parsedResponse)
+					
+					switch (response.getThechangeCase()) {
+						case ChatChange.ThechangeCase.MSG:
+							this.$store.commit('addMessage', parsedResponse.msg)
+							break;
+						case ChatChange.ThechangeCase.CLIENTCONNECTED:
+							this.$store.commit('addClientToRoom', [parsedResponse.clientconnected, parsedResponse.room])
+							break;
+						case ChatChange.ThechangeCase.CLIENTDISCONNECTED:
+							this.$store.commit('removeClientFromRoom', [parsedResponse.clientconnected, parsedResponse.room])
+							break;
+						case ChatChange.ThechangeCase.THECHANGE_NOT_SET:
+							break;
+					}
+					
 				})
 			},
 			onCreateRoom (roomsTitle) {
 				const roomPayload = new Room()
 
 				roomPayload.setTitle(roomsTitle)
-				roomPayload.addClients(this.state.user.$jspbMessageInstance)
+				roomPayload.setAuthor(this.state.user.$jspbMessageInstance)
 				
 				this.state.chatProvider.createRoom(roomPayload, {}, (err, data) => {
+					const room = data.toObject(true)
+					this.$store.commit('addRoom', room)
 					// join to returned room
-					this.joinRoomClicked(data.toObject(true))
+					this.$nextTick(() => {
+						this.joinRoomClicked(room)
+					})
 				})
 			},
 			onShowNewRoomModal () {
@@ -115,7 +149,7 @@
 				
 			},
 			createRoomsHook () {
-				const roomsServerStreaming = this.state.chatProvider.roomsHook(new Empty())
+				const roomsServerStreaming = this.state.chatProvider.getRooms(new Empty())
 
 				roomsServerStreaming.on('end', response => {
 					console.log('end: ', response)

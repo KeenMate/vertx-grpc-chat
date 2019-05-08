@@ -11,11 +11,14 @@ import "Common.proto";
 import "User.proto";
 
 service ChatProvider {
-	rpc CreateRoom(Room) returns (Room);
-	rpc JoinRoom(JoinRoomRequest) returns (stream ChatChange);
-	rpc RoomsHook(Empty) returns (stream Room);
+	rpc CreateRoom (Room) returns (Room);
+	rpc JoinRoom (JoinRoomRequest) returns (stream ChatChange);
+	rpc RemoveRoom (Room) returns (Empty);
+	rpc GetRooms(Empty) returns (stream Room);
 
-	rpc SendMessage(ChatChange) returns (Empty);
+	rpc SendMessage (Message) returns (Empty);
+
+	// todo: Ability to send/receive invitations
 }
 
 message JoinRoomRequest {
@@ -26,19 +29,27 @@ message JoinRoomRequest {
 message Room {
 	int32 roomId = 1;
 	string title = 2;
-	bool private = 3; // whether the room is intended for just p2p communication
+	/*
+		whether the room is intended for just p2p communication
+		todo: how to inform target client that invitation came?
+		todo: accept/reject capabilities
+	*/
+	bool private = 3;
+	Client author = 4;
 }
 
 message ChatChange {
 	oneof theChange {
-		// either new message or modified (modified one will have existing Id)
+		// either new message or modified
+		// modified one will have existing Id which should exist on client
 		Message msg = 1;
 		// new Client joined the room
 		Client clientConnected = 2;
 		// Client disconnected from the room
 		Client clientDisconnected = 3;
-
 	}
+
+	Room room = 4;
 }
 
 message Message {
@@ -47,5 +58,6 @@ message Message {
 	reserved 3;
 	Room room = 4;
 	string content = 5;
-	int64 sent = 6; // date when the message arrives at server
+	// date when the message arrives at server
+	int64 sent = 6;
 }

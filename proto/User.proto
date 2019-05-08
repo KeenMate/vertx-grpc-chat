@@ -10,10 +10,11 @@ package com.keenmate.chat;
 import "Common.proto";
 
 service UserProvider {
-	rpc Connect(ConnectRequest) returns (Client);
-
+	rpc Connect (ConnectRequest) returns (Client);
+	rpc Disconnect (Client) returns (Empty);
+	
 	rpc GetUser (RetrieveClientRequest) returns (Client);
-	rpc GetUsers(Empty) returns (stream Client);
+	rpc GetUsers (Empty) returns (stream Client);
 }
 
 message ConnectRequest {

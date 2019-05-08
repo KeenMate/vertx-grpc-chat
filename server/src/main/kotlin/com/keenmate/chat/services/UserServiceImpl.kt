@@ -12,14 +12,13 @@ class UserServiceImpl(private val vertx: Vertx) : UserProviderGrpc.UserProviderI
 
 	override fun connect(request: ConnectRequest?, responseObserver: StreamObserver<Client>?) {
 		println("Requested to connect from new user: ${request!!.name}")
-		eventBus.send<String>(
+		eventBus.send<ClientModel>(
 			Constants.Dao.AddClient,
-			ConnectRequestModel().parseFrom(request).toString()
+			ConnectRequestModel().parseFrom(request)
 		) {
 			if (it.succeeded()) {
 				responseObserver!!.onNext(
-					ClientModel()
-						.parseFrom(it.result().body())
+					it.result().body()
 						.convert()
 				)
 				
@@ -36,22 +35,6 @@ class UserServiceImpl(private val vertx: Vertx) : UserProviderGrpc.UserProviderI
 	}
 
 	override fun getUsers(request: Empty?, responseObserver: StreamObserver<Client>?) {
-		vertx.executeBlocking({ _: Future<Unit> ->
-			// stream existing clients
-			eventBus.send<String>(Constants.Dao.GetClients, "") { referrerMsg ->
-				val tmpConsumer = eventBus.consumer<String>(referrerMsg.result().body()) {
-					responseObserver!!.onNext(ClientModel()
-						.parseFrom(it.body())
-						.convert())
-				}
-			}
-
-			// stream upcoming clients
-			eventBus.consumer<String>(Constants.Dao.ClientAdded) {
-				responseObserver!!.onNext(ClientModel().parseFrom(it.body()).convert())
-			}
-		}, false) {			
-			responseObserver!!.onCompleted()
-		}
+		super.getUsers(request, responseObserver)
 	}
 }

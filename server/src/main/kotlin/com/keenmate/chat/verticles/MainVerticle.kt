@@ -1,19 +1,40 @@
 package com.keenmate.chat.verticles
 
-import io.reactivex.Observable
+import com.keenmate.chat.Constants
+import com.keenmate.chat.codecs.ByteCodec
+import com.keenmate.chat.codecs.ModelCodec
+import com.keenmate.chat.models.*
 import io.vertx.core.*
+import java.util.*
+import kotlin.collections.ArrayList
 
 class MainVerticle : AbstractVerticle() {	
-	override fun start(startFuture: Future<Void>) {
+	override fun start(startFuture: Future<Void>) {		
 		val futures: MutableList<Future<out Any>> = ArrayList()
 		
 		val eventBus = vertx.eventBus()
+		eventBus
+			.registerDefaultCodec(ArrayList::class.java, ByteCodec(Constants.CodecNames.ArrayListByteCodec + "1"))
+			.registerDefaultCodec(Collections.singletonList(Any::class.java)::class.java, ByteCodec(Constants.CodecNames.ArrayListByteCodec + "2"))
+			.registerDefaultCodec(emptyList<Any>()::class.java, ByteCodec(Constants.CodecNames.ArrayListByteCodec))
+			.registerDefaultCodec(ClientModel::class.java, ByteCodec(Constants.CodecNames.clientModelName()))
+			.registerDefaultCodec(ChatChangeModel::class.java, ByteCodec(Constants.CodecNames.chatChangeModelName()))
+			.registerDefaultCodec(ConnectRequestModel::class.java, ByteCodec(Constants.CodecNames.connectRequestModelName()))
+			.registerDefaultCodec(JoinRoomRequestModel::class.java, ByteCodec(Constants.CodecNames.joinRoomRequestModelName()))
+			.registerDefaultCodec(MessageModel::class.java, ByteCodec(Constants.CodecNames.messageModelName()))
+			.registerDefaultCodec(RoomModel::class.java, ByteCodec(Constants.CodecNames.roomModelName()))
 		
 		futures.add(Future.future<Unit> { f ->
 			vertx.deployVerticle(DaoVerticle(eventBus), DeploymentOptions().apply { 
 				isWorker = true
 			}) {
-				println("Verticle ${it.result()} successfully deployed")
+				if (it.result() != null)
+					println("Verticle ${it.result()} successfully deployed")
+				else {
+					println("Error in deploying Verticle")
+
+					println(it.cause())
+				}
 
 				f.complete()
 			}
@@ -21,7 +42,13 @@ class MainVerticle : AbstractVerticle() {
 		
 		futures.add(Future.future<Unit> { f ->
 			vertx.deployVerticle("com.keenmate.chat.verticles.ChatVerticle") {
-				println("Verticle ${it.result()} successfully deployed")
+				if (it.result() != null)
+					println("Verticle ${it.result()} successfully deployed")
+				else {
+					println("Error in deploying Verticle")
+					
+					println(it.cause())
+				}
 				
 				f.complete()
 			}

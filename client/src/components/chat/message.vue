@@ -3,11 +3,11 @@
 		class="comment">
 		<div class="content">
 				<span class="author">
-					{{ (msg.author || {}).name }}
+					{{ (msg.creator || {}).name }}
 				</span>
 			<div class="metadata">
 					<span class="date">
-						{{ msg.sentText }}
+						{{ msg.sentText || 'date not available' }}
 					</span>
 			</div>
 			<div class="text">
@@ -29,8 +29,11 @@
 		],
 		methods: {
 			onEdit () {
-				this.$emit('edit')
+				// this.$emit('edit')
 			}
+		},
+		mounted () {
+			console.log("got message to display: ", this.msg)
 		}
 	}
 </script>

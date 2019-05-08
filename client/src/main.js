@@ -37,10 +37,14 @@ router.beforeEach((to, from, next) => {
 })
 
 // set user from storage if present
-const userFromStorage = window.sessionStorage.getItem('user')
-if (userFromStorage !== null) {
-	VuexStoreObj.commit('setUser', userFromStorage)
-}
+// does not work because JSON.stringify does not strigifies properly...
+// const userFromStorage = JSON.parse(window.localStorage.getItem('user'))
+// console.log('client loaded from storage: ', userFromStorage)
+// if (userFromStorage !== null) {
+// 	VuexStoreObj.commit('setUser', userFromStorage)
+// }
+
+VuexStoreObj.commit('init')
 
 new Vue({
 	router,

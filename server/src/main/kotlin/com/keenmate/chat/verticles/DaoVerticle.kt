@@ -1,187 +1,198 @@
 package com.keenmate.chat.verticles
 
+import com.keenmate.chat.ChatChange
 import com.keenmate.chat.Constants
-import com.keenmate.chat.Room
-import com.keenmate.chat.models.ClientModel
-import com.keenmate.chat.models.JoinRoomRequestModel
-import com.keenmate.chat.models.MessageModel
-import com.keenmate.chat.models.RoomModel
-import io.reactivex.subjects.ReplaySubject
+import com.keenmate.chat.models.*
+import io.reactivex.subjects.PublishSubject
 import io.vertx.core.AbstractVerticle
 import io.vertx.core.Future
+import io.vertx.core.eventbus.DeliveryOptions
 import io.vertx.core.eventbus.EventBus
 import io.vertx.core.eventbus.MessageConsumer
+import io.vertx.kotlin.core.json.array
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.list
 import java.time.LocalDateTime
 import java.time.ZoneOffset
 import java.util.*
-import kotlin.random.Random
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.collections.ArrayList
 
 class DaoVerticle(private val eventBus: EventBus) : AbstractVerticle() {
+	private var idCounter = 0
+
+	// for storing observables and eventbus's consumers/publishers..
 	private val consumerMap: ConcurrentHashMap<UUID, MutableCollection<MessageConsumer<*>>> = ConcurrentHashMap()
-	
-	private val registerConsumer = eventBus.consumer<String>("asd") {
-		// message will be of specific type ->
-		//    containing client's UUID, and the "point of interest"
-		
-		// add new consumer to map to corresponding UUID
-	}
-	
-	init {		
+
+	// in-memory store of objects
+	private val clients: ArrayList<ClientModel> = ArrayList()
+	private val messages: ArrayList<MessageModel> = ArrayList()
+	private val rooms: ArrayList<RoomModel> = ArrayList()
+
+	init {
 		// add all consumers to consumers map 
 		val list = mutableListOf<MessageConsumer<*>>()
-		
+
 		list.add(eventBus
-			.consumer<String>(Constants.Dao.GetMessages) { mainMessage ->
-				val joinRoomRequestModel = JoinRoomRequestModel().parseFrom(mainMessage.body())
-
-				val tmpAddress = generateTmpPublisherAddress()
-
-				val tmpPublisher = eventBus.sender<String>(tmpAddress)
-				vertx.executeBlocking({ fut: Future<Unit> ->
-					messagesSubject.values
-						.forEach {
-							val casted = (it as MessageModel)
-
-							if (casted.room != null && joinRoomRequestModel.room != null &&
-								casted.room!!.roomId != joinRoomRequestModel.room!!.roomId)
-								return@forEach
-
-							tmpPublisher.send(casted.toString())
-						}
-
-					fut.complete()
-				}, false, {
-					tmpPublisher.end()
-				})
-
-				mainMessage.reply(tmpAddress)
-			}
-		)
-		
-		list.add(eventBus
-			.consumer<String>(Constants.Dao.GetClients) { mainMessage ->
-				val tmpAddress = generateTmpPublisherAddress()
-
-				val tmpPublisher = eventBus.sender<String>(tmpAddress)
-				vertx.executeBlocking({ fut: Future<Unit> ->
-					clientsSubject.values
-						.forEach {
-							tmpPublisher.send((it as ClientModel).toString())
-						}
-					
-					fut.complete()
-				}, false) {
-					tmpPublisher.end()
-				}
-
-				mainMessage.reply(tmpAddress)
-			}
-		)
-		
-		list.add(eventBus
-			.consumer<String>(Constants.Dao.GetRooms) { mainMessage ->
-				val tmpAddress = generateTmpPublisherAddress()
-
-				val tmpPublisher = eventBus.sender<String>(tmpAddress)
-				vertx.executeBlocking({ fut: Future<Unit> ->
-					roomsSubject.values
-						.forEach {
-							tmpPublisher.send(
-								(it as RoomModel).toString()
-							)
-						}
-
-					fut.complete()
-				}, false) {
-					tmpPublisher.end()
-				}
-
-				mainMessage.reply(tmpAddress)
-			}
-		)
-		
-		list.add(eventBus
-			.consumer<String>(Constants.Dao.AddMessage) {
-				val messageModel = MessageModel().parseFrom(it.body())
-
-
-			}
-		)
-		
-		list.add(eventBus
-			.consumer<String>(Constants.Dao.AddClient) {
-				val clientModel = ClientModel().parseFrom(it.body())
-
-				vertx.executeBlocking({ fut: Future<ClientModel?> ->
-					fut.complete(clientsSubject
-						.values
-						.firstOrNull { x ->
-							(x as ClientModel).name == clientModel.name
-						} as ClientModel?
-					)
-				}, false) { response ->
-					var toReturn: ClientModel? = response.result()
-					if (toReturn == null) {
-						println("Client was not found - creating one")
-						toReturn = clientModel
-						toReturn.clientGuid
-						toReturn.loggedOn = LocalDateTime.now().toEpochSecond(ZoneOffset.UTC)
-
-						clientsSubject.onNext(toReturn)
+			.consumer<JoinRoomRequestModel>(Constants.Dao.GetMessages) {
+				// return existing messages
+				it.reply(
+					(messages.filter { msg ->
+						msg.room.roomId == it.body().room.roomId
 					}
+						.takeLast(50))
+				)
+			}
+		)
 
-					it.reply(toReturn.toString())
+		list.add(eventBus
+			.consumer<Unit>(Constants.Dao.GetClients) {
+				it.reply(clients)
+			}
+		)
+
+		list.add(eventBus
+			.consumer<Unit>(Constants.Dao.GetRooms) {
+				it.reply(rooms)
+			}
+		)
+
+		list.add(eventBus
+			.consumer<ChatChangeModel>(Constants.Dao.ChangeChat) {
+				println("ChatChange received from event bus. message: ")
+				println(it.body())
+				val chatChange = it.body()
+
+				when (chatChange.theChange) {
+					ChatChange.TheChangeCase.MSG -> {
+						println("New message handling")
+						handleMessageChange(chatChange)
+						println("New message handled")
+					}
+					ChatChange.TheChangeCase.CLIENTCONNECTED -> {
+						println("Client connected handling")
+						handleClientConnected(chatChange)
+						println("Client connected handled")
+					}
+					ChatChange.TheChangeCase.CLIENTDISCONNECTED -> {
+						println("Client disconnected handling")
+						handleClientDisconnected(chatChange)
+						println("Client disconnected handled")
+					}
+					ChatChange.TheChangeCase.THECHANGE_NOT_SET -> {
+						println("The Change not set")
+						it.reply("")
+					}
+				}
+
+
+				println("About to handle notifications")
+				// notify related clients
+				rooms.find {
+					it.roomId == chatChange.room.roomId
+				}?.clients?.forEach {
+					println("notifying client ${it.name} about ChatChange")
+					eventBus.send(Constants.Dao.ClientChatChange(
+						it.clientGuid
+					), chatChange)
 				}
 			}
 		)
-		
-		list.add(eventBus
-			.consumer<String>(Constants.Dao.AddRoom) {
-				val room = RoomModel().parseFrom(it.body())
-				val tmpBuild = Room.newBuilder()
-					.setRoomId(++idCounter)
-					.setTitle(room.title)
-					.setPrivate(false)
-					.build()
 
-				it.reply(room.parseFrom(tmpBuild).toString())
-				roomsSubject.onNext(room)
+		list.add(eventBus
+			.consumer<ConnectRequestModel>(Constants.Dao.AddClient) {
+				val client = it.body()
+
+				var existingClient = clients.firstOrNull {
+					return@firstOrNull it.name == client.name
+				}
+
+				if (existingClient == null) {
+					existingClient = ClientModel()
+					existingClient.clientGuid = UUID.randomUUID().toString()
+					existingClient.loggedOn = LocalDateTime.now().toEpochSecond(ZoneOffset.UTC)
+					existingClient.name = client.name
+
+					clients.add(existingClient)
+				}
+
+				it.reply(existingClient)
 			}
 		)
-		
-		// creates empty UUID and puts all DAO's consumers to it
-		consumerMap.put(UUID(0, 0), list)
-	}
-	
-	// --------------------------------
-	
-	private var idCounter = 0
-	private val randomInstance = Random(Date().time)
 
-	private val messagesSubject: ReplaySubject<MessageModel> = ReplaySubject.create()
-	private val clientsSubject: ReplaySubject<ClientModel> = ReplaySubject.create()
-	private val roomsSubject: ReplaySubject<RoomModel> = ReplaySubject.create()
+		list.add(eventBus
+			.consumer<RoomModel>(Constants.Dao.AddRoom) {
+				val room = it.body()
+
+				// check if title exists
+				val existingRoom = rooms.firstOrNull { it.title == room.title }
+				if (existingRoom == null) {
+					room.roomId = ++idCounter
+
+					rooms.add(room)
+					it.reply(room)
+					eventBus.publish(Constants.Dao.RoomAdded, room)
+				} else {
+					it.fail(0, "Room exists")
+				}
+			}
+		)
+
+		// creates empty UUID and puts all DAO's consumers to it
+		consumerMap[UUID(0, 0)] = list
+	}
+
+	private fun handleMessageChange(chatChange: ChatChangeModel) {
+		// new message
+		println("Id of received message: ${chatChange.msg.messageId}")
+		if (chatChange.msg.messageId == 0) {
+			chatChange.msg.messageId = idCounter++
+
+			// todo: validate message props (target room etc.)
+
+			// add to messages
+			messages.add(chatChange.msg)
+
+			// add to room
+			rooms.first { it.roomId == chatChange.room.roomId }
+				.messages.add(chatChange.msg)
+		}
+
+		// message exists
+		val existingMsg = messages.find { it.messageId == chatChange.msg.messageId }
+
+		if (existingMsg != null) {
+			// update message's parts
+			existingMsg.content = chatChange.msg.content
+		}
+	}
+
+	private fun handleClientConnected(chatChange: ChatChangeModel) {
+		// add client to target room (if he is not already there)
+		rooms.find { it.roomId == chatChange.room.roomId }!!
+			.clients.add(chatChange.clientConnected)
+
+		// add this room to client's connected rooms
+		clients.find { it.clientGuid == chatChange.clientConnected.clientGuid }!!
+			.connectedRooms.add(chatChange.room)
+	}
+
+	private fun handleClientDisconnected(chatChange: ChatChangeModel) {
+		// remove client from this room
+		rooms.find { it.roomId == chatChange.room.roomId }!!
+			.clients.removeIf { it.clientGuid == chatChange.clientDisconnected.clientGuid }
+
+		// remove this room from client's connected rooms
+		clients.find { it.clientGuid == chatChange.clientDisconnected.clientGuid }!!
+			.connectedRooms.removeIf { it.roomId == chatChange.room.roomId }
+	}
 
 	override fun start(startFuture: Future<Void>) {
-		roomsSubject.subscribe {
-			println("New Room Added - sending to Everyone!")
-			eventBus.publish(Constants.Dao.RoomAdded, it.toString())
-		}
-
-		clientsSubject.subscribe {
-			println("New User Added - sending to Everyone!")
-			eventBus.publish(Constants.Dao.ClientAdded, it.toString())
-		}
-
 		startFuture.complete()
 	}
-	
+
 	override fun stop(stopFuture: Future<Void>) {
-		// todo: Unregister consumers for UUID(0, 0)
-	}
-	
-	private fun generateTmpPublisherAddress(): String {
-		return "dao.tmp-publisher:${randomInstance.nextLong()}"
+		// unregister consumers for UUID(0, 0)
+		consumerMap[UUID(0, 0)]?.removeAll { true }
 	}
 }

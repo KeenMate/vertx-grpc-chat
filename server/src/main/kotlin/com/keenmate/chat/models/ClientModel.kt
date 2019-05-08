@@ -2,26 +2,23 @@ package com.keenmate.chat.models
 
 import com.keenmate.chat.Client
 import com.keenmate.chat.models.base.IModel
-import kotlinx.serialization.Serializable
-import kotlinx.serialization.UnstableDefault
-import kotlinx.serialization.json.Json
 
-@Serializable
 class ClientModel: IModel<Client> {
 	var clientGuid: String = "" 
 	var name: String = ""
 	var loggedOn: Long = 0
 	
-	@UseExperimental(UnstableDefault::class)
-	override fun parseFrom(src: String): ClientModel {
-		val tmp = Json.parse(serializer(), src)
-		
-		clientGuid = tmp.clientGuid
-		name = tmp.name
-		loggedOn = tmp.loggedOn
-		
-		return this
-	}
+	// non-gRPC props
+	var connectedRooms: ArrayList<RoomModel> = ArrayList()
+	
+	// override fun parseFrom(src: String): ClientModel {
+	//	
+	// 	// clientGuid = tmp.clientGuid
+	// 	// name = tmp.name
+	// 	// loggedOn = tmp.loggedOn
+	//	
+	// 	return this
+	// }
 
 	override fun parseFrom(src: Client): ClientModel {
 		clientGuid = src.clientGuid
@@ -39,7 +36,16 @@ class ClientModel: IModel<Client> {
 			.build()
 	}
 
-	override fun toString(): String {
-		return Json.stringify(serializer(), this)
-	}
+	// override fun toString(): String {
+	// 	val sb = StringBuilder()
+	//	
+	// 	return sb.append("{")
+	// 		.append("name='").append(name).append("'")
+	// 		.append("clientGuid='").append(clientGuid).append("'")
+	// 		.append("loggedOn=").append(loggedOn)
+	// 		.append("}")
+	// 		.toString()
+	//	
+	// 	// return Json.stringify(serializer(), this)
+	// }
 }

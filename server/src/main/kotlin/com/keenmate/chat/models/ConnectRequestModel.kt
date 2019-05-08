@@ -2,21 +2,18 @@ package com.keenmate.chat.models
 
 import com.keenmate.chat.ConnectRequest
 import com.keenmate.chat.models.base.IModel
-import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
 
-@Serializable
 class ConnectRequestModel: IModel<ConnectRequest> {
 
 	var name: String = ""
 	
-	override fun parseFrom(src: String): ConnectRequestModel {
-		val tmp = Json.parse(serializer(), src)
-		
-		name = tmp.name
-		
-		return this
-	}
+	// override fun parseFrom(src: String): ConnectRequestModel {
+	// 	val tmp = Json.parse(serializer(), src)
+	//	
+	// 	name = tmp.name
+	//	
+	// 	return this
+	// }
 
 	override fun parseFrom(src: ConnectRequest): ConnectRequestModel {
 		name = src.name
@@ -30,7 +27,7 @@ class ConnectRequestModel: IModel<ConnectRequest> {
 			.build()
 	}
 
-	override fun toString(): String {
-		return Json.stringify(serializer(), this)
-	}
+	// override fun toString(): String {
+	// 	return Json.stringify(serializer(), this)
+	// }
 }
