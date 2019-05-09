@@ -6,7 +6,7 @@
 			</div>
 			<Message v-for="msg in room.messages" :key="msg.messageid"
 			         :msg="msg"
-			         :edit-visible="msg.creator.clientGuid === state.user.clientGuid"/>
+			         :edit-visible="msg.creatorguid === state.user.clientguid"/>
 		</div>
 		<div class="message-box ui grid">
 			<div class="ui row">

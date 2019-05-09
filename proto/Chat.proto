@@ -11,19 +11,36 @@ import "Common.proto";
 import "User.proto";
 
 service ChatProvider {
-	rpc CreateRoom (Room) returns (Room);
-	rpc JoinRoom (JoinRoomRequest) returns (stream ChatChange);
+	rpc CreateRoom (NewRoomRequest) returns (Room);
+	rpc JoinRoom (JoinRoomRequest) returns (Messages);
 	rpc RemoveRoom (Room) returns (Empty);
-	rpc GetRooms(Empty) returns (stream Room);
+	rpc GetRooms (Empty) returns (stream Room);
+	rpc GetClientsForRoom (Int32Message) returns (Clients);
+
+	rpc GetMessages (StringMessage) returns (stream ChatChange);
 
 	rpc SendMessage (Message) returns (Empty);
 
-	// todo: Ability to send/receive invitations
+	// todo: Ability to send/receive invitations (for private rooms (p2p communication))
+}
+
+message Messages {
+	repeated Message messages = 1;
+}
+
+message Clients {
+	repeated Client clients = 1;
+}
+
+message NewRoomRequest {
+	string title = 1;
+	bool private = 2;
+	string creatorGuid = 3;
 }
 
 message JoinRoomRequest {
-	Room room = 1;
-	Client client = 2;
+	int32 roomId = 1;
+	string clientGuid = 2;
 }
 
 message Room {
@@ -31,11 +48,11 @@ message Room {
 	string title = 2;
 	/*
 		whether the room is intended for just p2p communication
-		todo: how to inform target client that invitation came?
+		todo: how to inform target client that invitation came? - maybe another server-stream
 		todo: accept/reject capabilities
 	*/
 	bool private = 3;
-	Client author = 4;
+	Client creator = 4;
 }
 
 message ChatChange {
@@ -49,14 +66,14 @@ message ChatChange {
 		Client clientDisconnected = 3;
 	}
 
-	Room room = 4;
+	int32 roomId = 4;
 }
 
 message Message {
 	int32 messageId = 1;
-	Client creator = 2;
+	string creatorGuid = 2;
 	reserved 3;
-	Room room = 4;
+	int32 roomId = 4;
 	string content = 5;
 	// date when the message arrives at server
 	int64 sent = 6;

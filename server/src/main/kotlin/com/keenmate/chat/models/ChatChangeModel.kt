@@ -5,7 +5,7 @@ import com.keenmate.chat.models.base.IModel
 
 class ChatChangeModel: IModel<ChatChange> {
 	var msg: MessageModel = MessageModel()
-	var room: RoomModel = RoomModel()
+	var roomId: Int = 0
 	var clientConnected: ClientModel = ClientModel()
 	var clientDisconnected: ClientModel = ClientModel()
 	var theChange: ChatChange.TheChangeCase = ChatChange.TheChangeCase.THECHANGE_NOT_SET
@@ -13,7 +13,7 @@ class ChatChangeModel: IModel<ChatChange> {
 	override fun convert(): ChatChange {
 		val result = ChatChange.newBuilder()
 		
-		result.room = room.convert()
+		result.roomId = roomId
 		
 		when (theChange) {
 			ChatChange.TheChangeCase.MSG -> result.msg = msg.convert()
@@ -25,23 +25,8 @@ class ChatChangeModel: IModel<ChatChange> {
 		return result.build()
 	}
 
-	// @UnstableDefault
-	// override fun parseFrom(src: String): ChatChangeModel {
-	// 	val tmp = Json.parse(serializer(), src)
-	//	
-	// 	room = tmp.room
-	// 	when (tmp.theChange.toString()) {
-	// 		ChatChange.TheChangeCase.MSG.toString() -> msg = tmp.msg
-	// 		ChatChange.TheChangeCase.THECHANGE_NOT_SET.toString() -> { }
-	// 		ChatChange.TheChangeCase.CLIENTCONNECTED.toString() -> clientConnected = tmp.clientConnected
-	// 		ChatChange.TheChangeCase.CLIENTDISCONNECTED.toString() -> clientDisconnected = tmp.clientDisconnected
-	// 	}
-	//	
-	// 	return this
-	// }
-
 	override fun parseFrom(src: ChatChange): ChatChangeModel {
-		room = RoomModel().parseFrom(src.room)
+		roomId = src.roomId
 		
 		when (src.theChangeCase) {
 			ChatChange.TheChangeCase.MSG -> msg = MessageModel().parseFrom(src.msg)

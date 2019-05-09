@@ -17,6 +17,7 @@ class MainVerticle : AbstractVerticle() {
 			.registerDefaultCodec(ArrayList::class.java, ByteCodec(Constants.CodecNames.ArrayListByteCodec + "1"))
 			.registerDefaultCodec(Collections.singletonList(Any::class.java)::class.java, ByteCodec(Constants.CodecNames.ArrayListByteCodec + "2"))
 			.registerDefaultCodec(emptyList<Any>()::class.java, ByteCodec(Constants.CodecNames.ArrayListByteCodec))
+			.registerDefaultCodec(NewRoomRequestModel::class.java, ByteCodec(Constants.CodecNames.newRoomRequestModelName()))
 			.registerDefaultCodec(ClientModel::class.java, ByteCodec(Constants.CodecNames.clientModelName()))
 			.registerDefaultCodec(ChatChangeModel::class.java, ByteCodec(Constants.CodecNames.chatChangeModelName()))
 			.registerDefaultCodec(ConnectRequestModel::class.java, ByteCodec(Constants.CodecNames.connectRequestModelName()))

@@ -45,7 +45,7 @@
 					}
 					
 					this.$store.commit('setUser', data.toObject(true))
-					window.localStorage.setItem('user', JSON.stringify(this.state.user))
+					// window.localStorage.setItem('user', JSON.stringify(this.state.user))
 					
 					this.$router.push({
 						name: 'home'

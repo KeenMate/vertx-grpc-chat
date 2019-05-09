@@ -9,6 +9,8 @@ class Constants {
 			const val ByteCodec = "ByteCodec"
 			const val ArrayListByteCodec = "ArrayListByteCodec"
 			
+			fun newRoomRequestModelName(isArray: Boolean = false): String = modelName(NewRoomRequestModel::class.simpleName!!, isArray)
+			
 			fun roomModelName(isArray: Boolean = false): String = modelName(RoomModel::class.simpleName!!, isArray)
 
 			fun clientModelName(isArray: Boolean = false): String = modelName(ClientModel::class.simpleName!!, isArray)
@@ -33,18 +35,18 @@ class Constants {
 				"client.$id.chat-change"
 			}
 			
-			const val ProcessMessage = "chat-dao.process-message"
 			
 			const val GetMessages = "chat-dao.get-messages"
 			const val GetClients = "chat-dao.get-clients"
+			const val GetClientsForRoom = "chat-dao.get-clients-for-room"
+			const val GetClient = "chat-dao.get-client"
 			const val GetRooms = "chat-dao.get-rooms"
+			const val GetRoom = "chat-dao.get-room"
 
 			const val ChangeChat = "chat-dao.change-chat"
 			const val AddClient = "chat-dao.add-client"
 			const val AddRoom = "chat-dao.add-room"
-
-			const val ChatChanged = "chat-dao.chat-changed"
-			const val ClientAdded = "chat-dao.client-added"
+			
 			const val RoomAdded = "chat-dao.room-added"
 		}
 	}

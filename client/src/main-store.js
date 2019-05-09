@@ -67,29 +67,29 @@ export default {
 		addMessage (state, msg) {
 			insertOrUpdate(state.messages, msg, x => x.messageid)
 
-			insertOrUpdate(state.rooms.find(room => room.roomid === msg.room.roomid).messages,
+			insertOrUpdate(state.rooms.find(room => room.roomid === msg.roomid).messages,
 				msg,
 				x => x.messageid)
 		},
-		setCurrentRoom (state, room) {
-			state.currentRoomId = room.roomid
+		setCurrentRoom (state, roomId) {
+			state.currentRoomId = roomId
 		},
 		addClientToRoom (state, payload) {
-			const clients = state.rooms.find(x => x.roomid === payload[1].roomid)
+			const clients = state.rooms.find(x => x.roomid === payload[1])
 				.clients
 
-			let existingIndex = clients.findIndex(x => x.clientGuid === payload[0].clientGuid)
+			let existingIndex = clients.findIndex(x => x.clientguid === payload[0].clientguid)
 
-			if (existingIndex === -1)
+			if (existingIndex !== -1)
 				return
 
 			clients.push(payload[0])
 		},
 		removeClientFromRoom (state, payload) {
-			const clients = state.rooms.find(x => x.roomid === payload[1].roomid)
+			const clients = state.rooms.find(x => x.roomid === payload[1])
 				.clients
 
-			let existingIndex = clients.findIndex(x => x.clientGuid === payload[0].clientGuid)
+			let existingIndex = clients.findIndex(x => x.clientguid === payload[0].clientguid)
 
 			if (existingIndex === -1)
 				return

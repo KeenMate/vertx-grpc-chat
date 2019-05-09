@@ -5,13 +5,17 @@
 			<div class="ui centered grid">
 				<div class="column">
 					<div class="ui input">
-						<input type="text" placeholder="Room's title" v-model="newRoomTitle">
+						<input
+							type="text"
+							placeholder="Room's title"
+							v-model="newRoomTitle"
+							@keypress.enter="onCreateRoom">
 					</div>
 				</div>
 			</div>
 		</div>
 		<div class="actions">
-			<div class="ui approve button" @click="onCreateRoom">
+			<div class="ui approve button" ref="approveModalBtn" @click="onCreateRoom">
 				Create
 			</div>
 			<div class="ui cancel button">
@@ -33,8 +37,11 @@
 			showModal () {
 				$(this.$refs['create-room-modal']).modal('show')
 			},
-			onCreateRoom () {
+			onCreateRoom (ev) {
 				this.$emit('createRoom', this.newRoomTitle)
+				
+				if (ev.target.localname === 'input')
+					this.$refs['approveModalBtn'].click()
 				
 				this.newRoomTitle = ''
 			}

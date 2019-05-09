@@ -3,7 +3,7 @@
 		class="comment">
 		<div class="content">
 				<span class="author">
-					{{ (msg.creator || {}).name }}
+					{{ creatorName }}
 				</span>
 			<div class="metadata">
 					<span class="date">
@@ -27,17 +27,21 @@
 			'msg',
 			'editVisible'
 		],
+		data () {
+			return {
+				state: this.$store.state,
+				creatorName: ''
+			}
+		},
 		methods: {
 			onEdit () {
 				// this.$emit('edit')
 			}
 		},
-		mounted () {
-			console.log("got message to display: ", this.msg)
+		created () {
+			this.creatorName = (this.state.rooms.find(x => x.roomid === this.msg.roomid)
+			.clients.find(x => x.clientguid === this.msg.creatorguid) || {})
+				.name || 'Unknown'
 		}
 	}
 </script>
-
-<style scoped>
-
-</style>

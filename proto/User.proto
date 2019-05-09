@@ -22,7 +22,7 @@ message ConnectRequest {
 }
 
 message RetrieveClientRequest {
-	int32 requestedId = 1;
+	string clientGuid = 1;
 }
 
 message Client {

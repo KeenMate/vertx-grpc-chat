@@ -2,38 +2,27 @@ package com.keenmate.chat.models
 
 import com.keenmate.chat.JoinRoomRequest
 import com.keenmate.chat.models.base.IModel
+import java.util.*
 
 class JoinRoomRequestModel: IModel<JoinRoomRequest> {
-	var room: RoomModel = RoomModel()
-	var client: ClientModel = ClientModel()
+	var roomId: Int = 0
+	var clientGuid: String = UUID(0, 0)
+		.toString()
 	
 	override fun convert(): JoinRoomRequest {
 		val joinRoomRequestBuilder = JoinRoomRequest.newBuilder()
-			.setRoom(room!!.convert())
+			.setRoomId(roomId)
 		
-		if (client.clientGuid != "")
-			joinRoomRequestBuilder.client = client.convert()
+		if (clientGuid != UUID(0, 0).toString())
+			joinRoomRequestBuilder.clientGuid = clientGuid
 		
 		return joinRoomRequestBuilder.build()
 	}
 
-	// override fun parseFrom(src: String): JoinRoomRequestModel {
-	// 	val tmp = Json.parse(serializer(), src)
-	//	
-	// 	room = tmp.room
-	// 	client = tmp.client
-	//	
-	// 	return this
-	// }
-
 	override fun parseFrom(src: JoinRoomRequest): JoinRoomRequestModel {
-		room = RoomModel().parseFrom(src.room)
-		client = ClientModel().parseFrom(src.client)
+		roomId = src.roomId
+		clientGuid = src.clientGuid
 		
 		return this
 	}
-
-	// override fun toString(): String {
-	// 	return Json.stringify(serializer(), this)
-	// }
 }

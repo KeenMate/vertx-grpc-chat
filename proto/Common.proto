@@ -8,3 +8,11 @@ option objc_class_prefix = "HLW";
 package com.keenmate.chat;
 
 message Empty { }
+
+message Int32Message {
+	int32 value = 1;
+}
+
+message StringMessage {
+	string value = 1;
+}

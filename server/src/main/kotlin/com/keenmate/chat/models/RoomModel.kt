@@ -11,17 +11,6 @@ class RoomModel: IModel<Room> {
 	// non-gRPC props
 	var messages: ArrayList<MessageModel> = ArrayList()
 	var clients: ArrayList<ClientModel> = ArrayList()
-	
-	// override fun parseFrom(src: String): RoomModel {
-	// 	val tmp = Json.parse(serializer(), src)
-	//	
-	// 	roomId = tmp.roomId
-	// 	title = tmp.title
-	// 	clients = tmp.clients
-	// 	private = tmp.private
-	//	
-	// 	return this
-	// }
 
 	override fun parseFrom(src: Room): RoomModel {
 		roomId = src.roomId
@@ -38,8 +27,4 @@ class RoomModel: IModel<Room> {
 			.setPrivate(private)
 			.build()
 	}
-
-	// override fun toString(): String {
-	// 	return Json.stringify(serializer(), this)
-	// }
 }
