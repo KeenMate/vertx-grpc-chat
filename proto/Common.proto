@@ -16,3 +16,21 @@ message Int32Message {
 message StringMessage {
 	string value = 1;
 }
+
+message Status {
+	bool isOk = 1;
+	
+	// can be null; depends on whether the status is successful or not..
+	string errorMessage = 2;
+}
+
+enum TheChange {
+	// this symbolizes that something went wrong
+	// TheChange should always be set
+	NOTSET = 0;
+	
+	NEW = 1;
+	DELETED = 2;
+	MODIFIED = 3;
+	EXISTING = 4;
+}

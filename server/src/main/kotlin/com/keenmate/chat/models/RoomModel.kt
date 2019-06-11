@@ -7,15 +7,17 @@ class RoomModel: IModel<Room> {
 	var roomId: Int = 0
 	var title: String = ""
 	var private: Boolean = false
+	var creator: UserModel = UserModel()
 	
 	// non-gRPC props
 	var messages: ArrayList<MessageModel> = ArrayList()
-	var clients: ArrayList<ClientModel> = ArrayList()
+	var users: ArrayList<UserModel> = ArrayList()
 
 	override fun parseFrom(src: Room): RoomModel {
 		roomId = src.roomId
 		title = src.title
 		private = src.private
+		creator.parseFrom(src.creator)
 		
 		return this
 	}
@@ -25,6 +27,7 @@ class RoomModel: IModel<Room> {
 			.setRoomId(roomId)
 			.setTitle(title)
 			.setPrivate(private)
+			.setCreator(creator.convert())
 			.build()
 	}
 }

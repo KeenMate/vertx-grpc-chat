@@ -1,17 +1,14 @@
 package com.keenmate.chat.verticles
 
-import com.keenmate.chat.ChatChange
+import com.keenmate.chat.ChatEvent
 import com.keenmate.chat.Constants
+import com.keenmate.chat.TheChange
 import com.keenmate.chat.models.*
-import io.reactivex.subjects.PublishSubject
 import io.vertx.core.AbstractVerticle
 import io.vertx.core.Future
-import io.vertx.core.eventbus.DeliveryOptions
 import io.vertx.core.eventbus.EventBus
 import io.vertx.core.eventbus.MessageConsumer
-import io.vertx.kotlin.core.json.array
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.list
+import io.vertx.core.impl.ConcurrentHashSet
 import java.time.LocalDateTime
 import java.time.ZoneOffset
 import java.util.*
@@ -23,56 +20,62 @@ class DaoVerticle(private val eventBus: EventBus) : AbstractVerticle() {
 
 	// for storing observables and eventbus's consumers/publishers..
 	// might not be neccessary at all
-	private val consumerMap: ConcurrentHashMap<String, MutableCollection<MessageConsumer<*>>> = ConcurrentHashMap()
+	private val consumerMap: ConcurrentHashMap<String, MutableList<MessageConsumer<*>>> = ConcurrentHashMap()
 
 	// in-memory store of objects
-	// this is just temporary until other data-store comes as replace..
+	// this is just temporary until other data-store comes as a replace..
 	// this can be either Database or some messaging system like Apache's kafka
-	private val clients: ArrayList<ClientModel> = ArrayList()
-	private val messages: ArrayList<MessageModel> = ArrayList()
-	private val rooms: ArrayList<RoomModel> = ArrayList()
+	// private val users: ArrayList<UserModel> = ArrayList()
+	// private val messages: ArrayList<MessageModel> = ArrayList()
+	// private val rooms: ArrayList<RoomModel> = ArrayList()
+
+	private val users: ConcurrentHashSet<UserModel> = ConcurrentHashSet()
+	private val messages: ConcurrentHashSet<MessageModel> = ConcurrentHashSet()
+	private val rooms: ConcurrentHashSet<RoomModel> = ConcurrentHashSet()
 
 	init {
 		// add all consumers to consumers map 
 		val list = mutableListOf<MessageConsumer<*>>()
 
 		list.add(eventBus
-			.consumer<JoinRoomRequestModel>(Constants.Dao.GetMessages) {
+			.consumer<Int>(Constants.Dao.GetMessages) {
 				// return existing messages
 				it.reply(
-					messages.filter { msg ->
-						msg.roomId == it.body().roomId
-					}.takeLast(50)
+					messages
+						.filter { msg ->
+							msg.roomId == it.body()
+						}
+						.takeLast(50)
 				)
 			}
 		)
 
 		list.add(eventBus
 			.consumer<Unit>(Constants.Dao.GetClients) {
-				it.reply(clients)
+				it.reply(ArrayList(users))
 			}
 		)
-		
+
 		list.add(eventBus
 			.consumer<Int>(Constants.Dao.GetClientsForRoom) { msg ->
 				msg.reply(
-					rooms.find { it.roomId == msg.body()}?.clients
-						?.distinctBy { it.clientGuid }
-						?: ArrayList<ClientModel>()
+					rooms.find { it.roomId == msg.body() }?.users
+						?.distinctBy { it.userGuid }
+						?: ArrayList<UserModel>()
 				)
 			}
 		)
-		
+
 		list.add(eventBus
 			.consumer<String>(Constants.Dao.GetClient) { msg ->
-				println("fetching client: ${msg.body()}")
-				msg.reply(clients.first { it.clientGuid == msg.body() })
+				println("fetching user: ${msg.body()}")
+				msg.reply(users.first { it.userGuid == msg.body() })
 			}
 		)
 
 		list.add(eventBus
 			.consumer<Unit>(Constants.Dao.GetRooms) {
-				it.reply(rooms)
+				it.reply(ArrayList(rooms))
 			}
 		)
 
@@ -83,73 +86,118 @@ class DaoVerticle(private val eventBus: EventBus) : AbstractVerticle() {
 		)
 
 		list.add(eventBus
-			.consumer<ChatChangeModel>(Constants.Dao.ChangeChat) {
+			.consumer<ChatEventModel>(Constants.Dao.ChangeChat) {
 				println("ChatChange received from event bus. message: ")
-				val chatChange = it.body()
 
-				when (chatChange.theChange) {
-					ChatChange.TheChangeCase.MSG -> {
-						println("New message handling")
-						handleMessageChange(chatChange)
-						println("New message handled")
+				val chatEvent = it.body()
+
+				when (chatEvent.valueCase) {
+					ChatEvent.ValueCase.MESSAGE -> {
+						when (chatEvent.change) {
+							TheChange.NOTSET -> {
+								println("Error: change for message was not set")
+							}
+							TheChange.MODIFIED, TheChange.NEW -> handleMessageChange(chatEvent)
+							TheChange.DELETED -> TODO()
+							TheChange.EXISTING -> {
+								println("Error: Client should not send 'Existing' message")
+							}
+							TheChange.UNRECOGNIZED -> {
+								println("Error: TheChange for message was not recognized")
+							}
+						}
 					}
-					ChatChange.TheChangeCase.CLIENTCONNECTED -> {
-						println("Client connected handling")
-						handleClientConnected(chatChange)
-						println("Client connected handled")
+					ChatEvent.ValueCase.USER -> {
+						when (chatEvent.change) {
+							TheChange.NOTSET -> {
+								println("Error: change for user was not set")
+							}
+							TheChange.NEW -> {
+								handleUserJoined(chatEvent)
+							}
+							TheChange.MODIFIED -> {
+								TODO()
+							}
+							TheChange.DELETED -> {
+								handleUserDisconnected(chatEvent)
+							}
+							TheChange.EXISTING -> {
+								println("Error: Client should not send 'Existing' user")
+							}
+							TheChange.UNRECOGNIZED -> {
+								println("Error: TheChange for user was not recognized")
+							}
+						}
 					}
-					ChatChange.TheChangeCase.CLIENTDISCONNECTED -> {
-						println("Client disconnected handling")
-						handleClientDisconnected(chatChange)
-						println("Client disconnected handled")
+					ChatEvent.ValueCase.VALUE_NOT_SET -> {
+						println("Error: ValueCase was not set..")
 					}
-					ChatChange.TheChangeCase.THECHANGE_NOT_SET -> {
-						println("The Change not set")
-						it.reply("")
+					ChatEvent.ValueCase.ROOM -> {
+						when (chatEvent.change) {
+							TheChange.NOTSET -> println("Error: change for room was not set")
+							TheChange.NEW -> {
+							}
+							TheChange.MODIFIED -> {
+								handleModifyRoom(chatEvent)
+							}
+							TheChange.DELETED -> TODO()
+							TheChange.EXISTING -> {
+								println("Error: Client should not send 'Existing' room")
+							}
+							TheChange.UNRECOGNIZED -> {
+								println("Error: TheChange for room was not recognized")
+							}
+						}
 					}
 				}
 
 
 				println("About to handle notifications")
-				// notify related clients
+				// notify related users
 				rooms.find {
-					it.roomId == chatChange.roomId
-				}?.clients?.forEach {
-					println("notifying client ${it.name} about ChatChange")
-					eventBus.send(Constants.Dao.ClientChatChange(
-						it.clientGuid
-					), chatChange)
+					it.roomId == chatEvent.roomId
+				}?.users?.forEach {
+					println("notifying user ${it.name} about ChatChange")
+					eventBus.publish(Constants.Dao.ClientChatChange(
+						it.userGuid
+					), chatEvent)
 				}
+
+				it.reply(Unit)
 			}
 		)
 
 		list.add(eventBus
-			.consumer<ConnectRequestModel>(Constants.Dao.AddClient) {
-				val client = it.body()
+			.consumer<ConnectRequestModel>(Constants.Dao.AddUser) {
+				val connectRequestModel = it.body()
 
-				var existingClient = clients.firstOrNull {
-					return@firstOrNull it.name == client.name
+				var user = users.firstOrNull {
+					it.name == connectRequestModel.name
 				}
 
-				if (existingClient == null) {
-					existingClient = ClientModel()
-					existingClient.clientGuid = UUID.randomUUID().toString()
-					existingClient.loggedOn = LocalDateTime.now().toEpochSecond(ZoneOffset.UTC)
-					existingClient.name = client.name
+				if (user == null) {
+					user = UserModel()
+					user.userGuid = UUID.randomUUID().toString()
+					user.loggedOn = LocalDateTime.now().toEpochSecond(ZoneOffset.UTC)
+					user.name = connectRequestModel.name
 
-					clients.add(existingClient)
+					handleNewUser(user)
 				}
 
-				it.reply(existingClient)
+				it.reply(user)
 			}
 		)
 
 		list.add(eventBus
 			.consumer<NewRoomRequestModel>(Constants.Dao.AddRoom) {
 				val newRoomRequest = it.body()
-				
+
 				val newRoom = RoomModel()
 				newRoom.title = newRoomRequest.title
+
+				val creatorFound = users.find { it.userGuid == newRoomRequest.creatorGuid }
+				if (creatorFound != null)
+					newRoom.creator = creatorFound
 
 				// check if title exists
 				val existingRoom = rooms.firstOrNull { it.title == newRoomRequest.title }
@@ -157,8 +205,8 @@ class DaoVerticle(private val eventBus: EventBus) : AbstractVerticle() {
 					newRoom.roomId = ++idCounter
 
 					rooms.add(newRoom)
-					it.reply(newRoom)
 					eventBus.publish(Constants.Dao.RoomAdded, newRoom)
+					it.reply(newRoom)
 				} else {
 					it.fail(0, "Room exists")
 				}
@@ -169,66 +217,116 @@ class DaoVerticle(private val eventBus: EventBus) : AbstractVerticle() {
 		consumerMap[""] = list
 	}
 
-	private fun handleMessageChange(chatChange: ChatChangeModel) {
+	private fun handleModifyRoom(chatEvent: ChatEventModel) {
+		if (chatEvent.room == null)
+			return
+		
+		val found = rooms.find { it.roomId == chatEvent.roomId } ?: return
+
+		// update existing room
+		found.title = chatEvent.room!!.title
+		found.private = chatEvent.room!!.private
+		
+		found.users.forEach { user ->
+			val room = user.connectedRooms.first { it.roomId == found.roomId }
+			
+			room.title = found.title
+			room.private = found.private
+		}
+	}
+
+	private fun handleNewUser(user: UserModel) {
+		val found = users.find { it.name == user.name || it.userGuid == user.userGuid }
+
+		if (found == null)
+			users.add(user)
+
+		val userChange = UserChangeModel()
+		userChange.change = TheChange.NEW
+		userChange.user = user
+
+		// todo: propagate new user
+		// eventBus.publish(Constants.Dao.ClientChanged, userChange)
+	}
+
+	/**
+	 * Handles new messages as well as existing (by updating them)
+	 */
+	private fun handleMessageChange(chatEvent: ChatEventModel) {
+		if (chatEvent.message == null)
+			return
+
+		println("Id of received message: ${chatEvent.message!!.messageId}")
+
 		// new message
-		println("Id of received message: ${chatChange.msg.messageId}")
-		if (chatChange.msg.messageId == 0) {
-			chatChange.msg.messageId = idCounter++
+		if (chatEvent.message!!.messageId == 0) {
+			chatEvent.message!!.messageId = idCounter++
 
 			// todo: validate message props (target room etc.)
 
 			// add to messages
-			messages.add(chatChange.msg)
+			messages.add(chatEvent.message)
 
 			// add to room
-			rooms.first { it.roomId == chatChange.roomId }
-				.messages.add(chatChange.msg)
+			rooms.first { it.roomId == chatEvent.roomId }
+				.messages.add(chatEvent.message!!)
 		}
 
 		// message exists
-		val existingMsg = messages.find { it.messageId == chatChange.msg.messageId }
+		val existingMsg = messages.find { it.messageId == chatEvent.message!!.messageId }
 
 		if (existingMsg != null) {
 			// update message's parts
-			existingMsg.content = chatChange.msg.content
+			existingMsg.content = chatEvent.message!!.content
 		}
 	}
 
-	private fun handleClientConnected(chatChange: ChatChangeModel) {
-		val room = rooms.find { it.roomId == chatChange.roomId }
-		
+	private fun handleUserJoined(chatEvent: ChatEventModel) {
+		val room = rooms.find { it.roomId == chatEvent.roomId }
+
 		if (room == null) {
 			println("Room doesnt exist anymore")
 			return
 		}
-		
-		// add client to target room (even if client is already there..)
-		room.clients.add(chatChange.clientConnected)
 
-		// add this room to client's connected rooms
-		val client = clients.find { it.clientGuid == chatChange.clientConnected.clientGuid }!!
-		
-		if (client.connectedRooms.find { it.roomId == chatChange.roomId } == null)
-			client.connectedRooms.add(room)
+		// add user to target room (even if user is already there..)
+		if (chatEvent.user == null)
+			return
+
+		if (room.users.find { it.userGuid == chatEvent.user!!.userGuid } == null)
+		room.users.add(chatEvent.user!!)
+
+		// add this room to user's connected rooms
+		val user = users.find { it.userGuid == chatEvent.user!!.userGuid }!!
+
+		if (user.connectedRooms.find { it.roomId == chatEvent.roomId } == null)
+			user.connectedRooms.add(room)
 	}
 
-	private fun handleClientDisconnected(chatChange: ChatChangeModel) {
-		val room = rooms.find { it.roomId == chatChange.roomId }!!
+	private fun handleUserDisconnected(chatEvent: ChatEventModel) {
+		if (chatEvent.user == null)
+			return
 
-		// remove client from this room
-		room.clients.removeIf { it.clientGuid == chatChange.clientDisconnected.clientGuid }
+		val room = rooms.find { it.roomId == chatEvent.roomId }!!
 
-		// remove this room from client's connected rooms
-		clients.find { it.clientGuid == chatChange.clientDisconnected.clientGuid }!!
-			.connectedRooms.removeIf { it.roomId == chatChange.roomId }
+		// remove user from this room
+		room.users.removeIf { it.userGuid == chatEvent.user!!.userGuid }
+
+		// remove this room from user's connected rooms
+		users.find { it.userGuid == chatEvent.user!!.userGuid }!!
+			.connectedRooms.removeIf { it.roomId == chatEvent.roomId }
 	}
 
-	override fun start(startFuture: Future<Void>) {
-		startFuture.complete()
-	}
+	// override fun start(startFuture: Future<Void>) {
+	// 	startFuture.complete()
+	// }
 
 	override fun stop(stopFuture: Future<Void>) {
 		// unregister consumers for empty UUID
-		consumerMap[""]?.removeAll { true }
+		
+		for (i: Int in consumerMap[""]?.count()?.rangeTo(0) ?: IntRange(0, 0)) {
+			consumerMap[""]?.elementAt(i)?.unregister()
+			consumerMap[""]?.removeAt(i)
+		}
 	}
 }

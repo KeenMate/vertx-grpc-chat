@@ -10,25 +10,31 @@ package com.keenmate.chat;
 import "Common.proto";
 
 service UserProvider {
-	rpc Connect (ConnectRequest) returns (Client);
-	rpc Disconnect (Client) returns (Empty);
+	rpc Connect (ConnectRequest) returns (User);
 	
-	rpc GetUser (RetrieveClientRequest) returns (Client);
-	rpc GetUsers (Empty) returns (stream Client);
+	// receives user's guid and makes sure that all server-side consumers/observers etc. will be released
+	rpc Disconnect (StringMessage) returns (Status);
+	// rpc GetUsers (Empty) returns (stream UserChange);
 }
 
 message ConnectRequest {
 	string name = 1;
 }
 
-message RetrieveClientRequest {
-	string clientGuid = 1;
+message RetrieveUserRequest {
+	string userGuid = 1;
 }
 
-message Client {
-	reserved "clientId";
+message UserChange {
+	User user = 1;
+	
+	TheChange change = 2;
+}
+
+message User {
+	reserved "creatorId";
 	reserved 1;
-	string clientGuid = 4;
+	string userGuid = 4;
 	string name = 2;
 	int64 loggedOn = 3;
 }

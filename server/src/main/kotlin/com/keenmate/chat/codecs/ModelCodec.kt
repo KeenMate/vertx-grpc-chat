@@ -1,7 +1,5 @@
 package com.keenmate.chat.codecs
 
-import com.google.errorprone.annotations.Var
-import com.keenmate.chat.models.ClientModel
 import io.vertx.core.buffer.Buffer
 import io.vertx.core.eventbus.MessageCodec
 import java.io.*

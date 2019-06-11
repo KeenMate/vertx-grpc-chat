@@ -1,7 +1,6 @@
 package com.keenmate.chat
 
 import com.keenmate.chat.models.*
-import java.util.*
 
 class Constants {	
 	class CodecNames {
@@ -9,13 +8,15 @@ class Constants {
 			const val ByteCodec = "ByteCodec"
 			const val ArrayListByteCodec = "ArrayListByteCodec"
 			
+			fun clientChangeModelName(isArray: Boolean = false): String = modelName(UserChangeModel::class.simpleName!!, isArray)
+			
 			fun newRoomRequestModelName(isArray: Boolean = false): String = modelName(NewRoomRequestModel::class.simpleName!!, isArray)
 			
 			fun roomModelName(isArray: Boolean = false): String = modelName(RoomModel::class.simpleName!!, isArray)
 
-			fun clientModelName(isArray: Boolean = false): String = modelName(ClientModel::class.simpleName!!, isArray)
+			fun clientModelName(isArray: Boolean = false): String = modelName(UserModel::class.simpleName!!, isArray)
 
-			fun chatChangeModelName(isArray: Boolean = false): String = modelName(ChatChangeModel::class.simpleName!!, isArray)
+			fun chatEventModelName(isArray: Boolean = false): String = modelName(ChatEventModel::class.simpleName!!, isArray)
 
 			fun connectRequestModelName(isArray: Boolean = false): String = modelName(ConnectRequestModel::class.simpleName!!, isArray)
 
@@ -32,22 +33,22 @@ class Constants {
 	class Dao {
 		companion object {
 			val ClientChatChange = { id: String ->
-				"client.$id.chat-change"
+				"user.$id.chat-change"
 			}
 			
-			
 			const val GetMessages = "chat-dao.get-messages"
-			const val GetClients = "chat-dao.get-clients"
-			const val GetClientsForRoom = "chat-dao.get-clients-for-room"
-			const val GetClient = "chat-dao.get-client"
+			const val GetClients = "chat-dao.get-users"
+			const val GetClientsForRoom = "chat-dao.get-users-for-room"
+			const val GetClient = "chat-dao.get-user"
 			const val GetRooms = "chat-dao.get-rooms"
 			const val GetRoom = "chat-dao.get-room"
 
 			const val ChangeChat = "chat-dao.change-chat"
-			const val AddClient = "chat-dao.add-client"
+			const val AddUser = "chat-dao.add-user"
 			const val AddRoom = "chat-dao.add-room"
 			
 			const val RoomAdded = "chat-dao.room-added"
+			const val ClientChanged = "chat-dao.user-changed"
 		}
 	}
 }

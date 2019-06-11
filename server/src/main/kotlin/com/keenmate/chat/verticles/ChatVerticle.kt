@@ -11,9 +11,9 @@ import io.vertx.grpc.VertxServerBuilder
 class ChatVerticle : AbstractVerticle() {	
 	override fun start(startFuture: Future<Void>) {
 		VertxServerBuilder.forPort(9990)
-			.addService(ChatServiceImpl(vertx).bindService())
-			.addService(UserServiceImpl(vertx).bindService())
-			.addTransportFilter(CustomTransportFilter())
+			.addService(ChatServiceImpl(vertx))
+			.addService(UserServiceImpl(vertx))
+			// .addTransportFilter(CustomTransportFilter())
 			.build().start()
 		startFuture.complete()
 	}

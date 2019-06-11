@@ -2,42 +2,63 @@ package com.keenmate.chat.services
 
 import com.keenmate.chat.*
 import com.keenmate.chat.models.*
+import io.grpc.StatusRuntimeException
 import io.grpc.stub.StreamObserver
 import io.vertx.core.Vertx
-import io.vertx.core.eventbus.DeliveryOptions
 import io.vertx.core.eventbus.EventBus
-import io.vertx.kotlin.core.eventbus.sendAwait
-import kotlinx.serialization.ImplicitReflectionSerializer
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.parseList
-import java.lang.Exception
+import java.util.*
+import kotlin.collections.ArrayList
 
 class ChatServiceImpl(private val vertx: Vertx) : ChatProviderGrpc.ChatProviderImplBase() {
 	private val eventBus: EventBus = this.vertx.eventBus()
 
 	// server-side streaming
-	override fun getMessages(request: StringMessage?, responseObserver: StreamObserver<ChatChange>?) {
-		eventBus.consumer<ChatChangeModel>(Constants.Dao.ClientChatChange(request!!.value)) {
-			responseObserver!!.onNext(it.body().convert())
-		}
+	override fun listen(request: StringMessage?, responseObserver: StreamObserver<ChatEvent>?) {
+		// users
+		listenUsers(responseObserver)
+
+		// rooms
+		listenRooms(responseObserver)
+
+		// messages
+		listenChatChanges(request!!.value, responseObserver)
 	}
 
-	override fun getClientsForRoom(request: Int32Message?, responseObserver: StreamObserver<Clients>?) {
-		eventBus.send<ArrayList<ClientModel>>(Constants.Dao.GetClientsForRoom, request!!.value) {
-			val response = Clients.newBuilder()
-			response.addAllClients(
-				it.result()
-					.body()
-					.map { it.convert() }
-					.asIterable())
+	// override fun getMessages(request: StringMessage?, responseObserver: StreamObserver<ChatChange>?) {
+	// 	val consumer = eventBus.consumer<ChatChangeModel>(Constants.Dao.ClientChatChange(request!!.value))
+	//
+	// 	consumer.handler {
+	// 		try {
+	// 			responseObserver!!.onNext(it.body().convert())
+	// 		} catch (ex: StatusRuntimeException) {
+	// 			consumer.unregister()
+	// 		}
+	// 	}
+	// }
+	//
+	// override fun getRooms(request: Empty?, responseObserver: StreamObserver<Room>?) {
+	// 	println("Creating rooms hook")
+	//
+	// 	// stream existing rooms
+	// 	eventBus.send<ArrayList<RoomModel>>(Constants.Dao.GetRooms, "") {
+	// 		it.result().body()
+	// 			.forEach { room ->
+	// 				responseObserver!!.onNext(room.convert())
+	// 			}
+	// 	}
+	//
+	// 	// stream upcoming rooms
+	// 	val consumer = eventBus.consumer<RoomModel>(Constants.Dao.RoomAdded)
+	// 	consumer.handler {
+	// 		try {
+	// 			responseObserver!!.onNext(it.body().convert())
+	// 			println("Sent new room to user")
+	// 		} catch (ex: StatusRuntimeException) {
+	// 			consumer.unregister()
+	// 		}
+	// 	}
+	// }
 
-			responseObserver!!.onNext(response.build())
-			println("Sent all clients for given room")
-			responseObserver.onCompleted()
-		}
-	}
-
-	// unary call
 	override fun createRoom(request: NewRoomRequest?, responseObserver: StreamObserver<Room>?) {
 		println("Creating room")
 		eventBus.send<RoomModel>(Constants.Dao.AddRoom,
@@ -48,85 +69,132 @@ class ChatServiceImpl(private val vertx: Vertx) : ChatProviderGrpc.ChatProviderI
 					it.result().body().convert()
 				)
 			responseObserver.onCompleted()
-			println("Room created")
 		}
 	}
 
-	// server-side streaming
-	override fun joinRoom(request: JoinRoomRequest?, responseObserver: StreamObserver<Messages>?) {
+	override fun joinRoom(request: JoinRoomRequest?, responseObserver: StreamObserver<Status>?) {
 		println("Joining room")
 		val joinRoomRequestModel = JoinRoomRequestModel().parseFrom(request!!)
 
-		// send chat chcange to system
-		eventBus.send<ClientModel>(Constants.Dao.GetClient, joinRoomRequestModel.clientGuid) {
-			val chatChangeNewClient = ChatChangeModel()
-			chatChangeNewClient.theChange = ChatChange.TheChangeCase.CLIENTCONNECTED
+		// send new-user chat change to system
+		eventBus.send<UserModel>(Constants.Dao.GetClient, joinRoomRequestModel.userGuid) {
+			val newUserChatEvent = ChatEventModel()
+			newUserChatEvent.change = TheChange.NEW
 
-			chatChangeNewClient.clientConnected = it.result().body()
+			newUserChatEvent.valueCase = ChatEvent.ValueCase.USER
+			newUserChatEvent.user = it.result().body()
 
-			chatChangeNewClient.roomId = joinRoomRequestModel.roomId
+			newUserChatEvent.roomId = joinRoomRequestModel.roomId
 
-			eventBus.send<Unit>(Constants.Dao.ChangeChat, chatChangeNewClient) {
+			eventBus.send<Unit>(Constants.Dao.ChangeChat, newUserChatEvent) {
 				// fetch last 50 messages
 				eventBus.send<ArrayList<MessageModel>>(
 					Constants.Dao.GetMessages,
-					joinRoomRequestModel) {
-					responseObserver!!.onNext(
-						Messages.newBuilder()
-							.addAllMessages(
-								it.result().body()
-									.map { it.convert() }
-									.asIterable())
-							.build()
-					)
-					
+					joinRoomRequestModel.roomId) {
+					// todo: send message to corresponding consumers
+					it.result()
+						.body()
+						.map {
+							val messageChatEvent = ChatEventModel()
+							messageChatEvent.change = TheChange.EXISTING
+							messageChatEvent.message = it
+							messageChatEvent.valueCase = ChatEvent.ValueCase.MESSAGE
+							messageChatEvent.roomId = it.roomId
+
+							return@map messageChatEvent
+						}
+						.forEach {
+							eventBus.publish(Constants.Dao.ClientChatChange(newUserChatEvent.user!!.userGuid), it)
+						}
+
+					responseObserver!!.onNext(Status.newBuilder()
+						.setIsOk(true)
+						.build())
 					responseObserver.onCompleted()
 				}
 			}
-
-			// listen for all upcoming changes
-			// eventBus.consumer<ChatChangeModel>(Constants.Dao.ClientChatChange(joinRoomRequestModel.clientGuid)) {
-			// 	println("Received notification from eventbus for client '${chatChangeNewClient.clientConnected.name}'")
-			//
-			// 	println("Sending message to response observer")
-			// 	responseObserver!!.onNext(it.body().convert())
-			// 	println("Message sent to client")
-			// }
 		}
 	}
 
-	override fun getRooms(request: Empty?, responseObserver: StreamObserver<Room>?) {
-		println("Creating rooms hook")
-
-		// stream existing rooms
-		eventBus.send<ArrayList<RoomModel>>(Constants.Dao.GetRooms, "") {
-			it.result().body()
-				.forEach { room ->
-					responseObserver!!.onNext(room.convert())
-				}
-		}
-
-		// stream upcoming rooms
-		eventBus.consumer<RoomModel>(Constants.Dao.RoomAdded) {
-			responseObserver!!.onNext(it.body().convert())
-			println("Sent new room to client")
-		}
-	}
-
-	override fun sendMessage(request: Message?, responseObserver: StreamObserver<Empty>?) {
+	override fun sendMessage(request: Message?, responseObserver: StreamObserver<Status>?) {
 		println("Received message")
 
 		val parsedMessage = MessageModel().parseFrom(request!!)
+		parsedMessage.sent = Date().time
+		
 		println("Message parsed")
-		val chatChangeModel = ChatChangeModel()
-		chatChangeModel.theChange = ChatChange.TheChangeCase.MSG
-		chatChangeModel.msg = parsedMessage
+		val chatChangeModel = ChatEventModel()
+		chatChangeModel.change = TheChange.NEW
+
+		chatChangeModel.message = parsedMessage
+		chatChangeModel.valueCase = ChatEvent.ValueCase.MESSAGE
 
 		chatChangeModel.roomId = parsedMessage.roomId
 
 		eventBus.send<Unit>(Constants.Dao.ChangeChat, chatChangeModel) {
-			responseObserver!!.onCompleted()
-			println("Message sent")
+			responseObserver!!.onNext(Status.newBuilder()
+				.setIsOk(true)
+				.build()
+			)
+			responseObserver.onCompleted()
 		}
 	}
+
+	private fun listenUsers(responseObserver: StreamObserver<ChatEvent>?) {
+		println("Users streaming is not implemented yet")
+	}
+
+	private fun listenRooms(responseObserver: StreamObserver<ChatEvent>?) {
+		println("Creating rooms hook")
+
+		// stream existing rooms
+		println("Streaming existing rooms")
+		eventBus.send<ArrayList<RoomModel>>(Constants.Dao.GetRooms, Unit) {
+			val response = ChatEvent.newBuilder()
+				.setChange(TheChange.EXISTING)
+			it.result().body()
+				.forEach { room ->
+					response.room = room.convert()
+
+					responseObserver!!.onNext(response.build())
+				}
+		}
+
+		// stream upcoming rooms
+		val newRoomResponse = ChatEvent.newBuilder()
+			.setChange(TheChange.NEW)
+		val consumer = eventBus.consumer<RoomModel>(Constants.Dao.RoomAdded)
+		consumer.handler {
+			try {
+				responseObserver!!.onNext(
+					newRoomResponse.setRoom(it.body().convert())
+						.build()
+				)
+				println("Sent new room to user")
+			} catch (ex: StatusRuntimeException) {
+				println("Could not send new room to user - unregistering consumer")
+				consumer.unregister()
+			}
+		}
+	}
+
+	private fun listenChatChanges(userGuid: String, responseObserver: StreamObserver<ChatEvent>?) {
+		// todo: send existing messages & users
+		
+		val consumer = eventBus.consumer<ChatEventModel>(
+			Constants.Dao.ClientChatChange(userGuid)
+		)
+
+		consumer.handler {
+			println("Room Id of ChatEvent before send: ${it.body().roomId}")
+			
+			try {
+				responseObserver!!.onNext(it.body().convert())
+			} catch (ex: StatusRuntimeException) {
+				consumer.unregister()
+			}
+		}
+	}
+
+
 }

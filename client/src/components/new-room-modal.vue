@@ -40,7 +40,7 @@
 			onCreateRoom (ev) {
 				this.$emit('createRoom', this.newRoomTitle)
 				
-				if (ev.target.localname === 'input')
+				if (ev.target.localName === 'input')
 					this.$refs['approveModalBtn'].click()
 				
 				this.newRoomTitle = ''

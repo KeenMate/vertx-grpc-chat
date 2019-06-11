@@ -5,13 +5,12 @@
 				{{room.title}}
 			</div>
 			<Message v-for="msg in room.messages" :key="msg.messageid"
-			         :msg="msg"
-			         :edit-visible="msg.creatorguid === state.user.clientguid"/>
+			         :msg="msg" />
 		</div>
 		<div class="message-box ui grid">
 			<div class="ui row">
 				<div class="twelve wide column">
-					<textarea v-model="newMsgContent"></textarea>
+					<input type="text" v-model="newMsgContent" @keypress.enter="onSendClick">
 				</div>
 				<div class="four wide column">
 					<button class="ui button" @click="onSendClick">

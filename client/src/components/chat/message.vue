@@ -13,19 +13,17 @@
 			<div class="text">
 				{{ msg.content }}
 			</div>
-			<div class="actions">
-				<a v-if="editVisible" class="edit" @click="onEdit">Edit</a>
-			</div>
 		</div>
 	</div>
 </template>
 
 <script>
+	import {MasterSlaveDataKey} from '../../config/constants.js'
+
 	export default {
 		name: 'message',
 		props: [
-			'msg',
-			'editVisible'
+			'msg'
 		],
 		data () {
 			return {
@@ -33,14 +31,9 @@
 				creatorName: ''
 			}
 		},
-		methods: {
-			onEdit () {
-				// this.$emit('edit')
-			}
-		},
 		created () {
-			this.creatorName = (this.state.rooms.find(x => x.roomid === this.msg.roomid)
-			.clients.find(x => x.clientguid === this.msg.creatorguid) || {})
+			this.creatorName = (this.state[MasterSlaveDataKey].sharedState.rooms.find(x => x.roomid === this.msg.roomid)
+			.users.find(x => x.userguid === this.msg.creatorguid) || {})
 				.name || 'Unknown'
 		}
 	}
