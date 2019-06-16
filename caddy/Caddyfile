@@ -1,0 +1,49 @@
+
+http://chat.km-ubu-001.serv.keenmate.com {
+#	tls jakabfilip.fj@gmail.com
+	root /srv/vertx.grpc.chat
+
+	log /var/log/requests.static.log {
+		rotate_size 50
+		rotate_age 90
+		rotate_keep 20
+		rotate_compress
+	}
+}
+
+http://api.chat.km-ubu-001.serv.keenmate.com {
+#	tls jakabfilip.fj@gmail.com
+
+	header / {
+		Access-Control-Allow-Origin http://chat.km-ubu-001.serv.keenmate.com
+		Access-Control-Allow-Methods "GET, POST, OPTIONS"
+		Access-Control-Allow-Headers "keep-alive,user-agent,cache-control,content-type,content-transfer-encoding,x-accept-content-transfer-encoding,x-accept-response-streaming,x-user-agent,x-grpc-web,grpc-timeout"
+		access-control-expose-headers "grpc-status,grpc-message"
+	}
+
+#	status 200 /
+
+	grpc vertx-web:9990 {
+		backend_is_insecure
+		backend_tls_noverify
+	}
+
+	log /var/log/requests.grpc.log {
+		rotate_size 50
+		rotate_age 90
+		rotate_keep 20
+		rotate_compress
+	}
+}
+
+http://demo.km-ubu-001.serv.keenmate.com {
+	header / {
+		Access-Control-Allow-Origin http://chat.km-ubu-001.serv.keenmate.com
+		Access-Control-Allow-Methods "GET, POST, OPTIONS"
+		Access-Control-Allow-Headers "keep-alive,user-agent,cache-control,content-type,content-transfer-encoding,x-accept-content-transfer-encoding,x-accept-response-streaming,x-user-agent,x-grpc-web,grpc-timeout"
+		Access-Control-Expose-Headers "grpc-status,grpc-message"
+	}
+
+	root /srv/vertx.grpc.chat
+}
+
