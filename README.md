@@ -10,4 +10,5 @@ This is just a simple demo for us to see how easy or difficult is to implement a
 - VueJS
 - Semantic
 - Envoy (needed proxy server to translate http1 to http2 request)
+  - This proxy might be replaced by Caddy if we will manage to get it working...
 - Docker
