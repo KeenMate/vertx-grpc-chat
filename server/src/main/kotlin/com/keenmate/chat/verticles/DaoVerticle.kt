@@ -51,15 +51,17 @@ class DaoVerticle(private val eventBus: EventBus) : AbstractVerticle() {
 		)
 
 		list.add(eventBus
-			.consumer<Unit>(Constants.Dao.GetClients) {
+			.consumer<Unit>(Constants.Dao.GetUsers) {
 				it.reply(ArrayList(users))
 			}
 		)
 
 		list.add(eventBus
-			.consumer<Int>(Constants.Dao.GetClientsForRoom) { msg ->
+			.consumer<String>(Constants.Dao.GetVisibleUsers) { msg ->
 				msg.reply(
-					rooms.find { it.roomId == msg.body() }?.users
+					users.find { it.userGuid == msg.body() }?.connectedRooms
+						?.map { it.users }
+						?.flatten()
 						?.distinctBy { it.userGuid }
 						?: ArrayList<UserModel>()
 				)
@@ -151,14 +153,13 @@ class DaoVerticle(private val eventBus: EventBus) : AbstractVerticle() {
 					}
 				}
 
-
 				println("About to handle notifications")
 				// notify related users
 				rooms.find {
 					it.roomId == chatEvent.roomId
 				}?.users?.forEach {
 					println("notifying user ${it.name} about ChatChange")
-					eventBus.publish(Constants.Dao.ClientChatChange(
+					eventBus.publish(Constants.Dao.ChatChange(
 						it.userGuid
 					), chatEvent)
 				}
@@ -220,16 +221,16 @@ class DaoVerticle(private val eventBus: EventBus) : AbstractVerticle() {
 	private fun handleModifyRoom(chatEvent: ChatEventModel) {
 		if (chatEvent.room == null)
 			return
-		
+
 		val found = rooms.find { it.roomId == chatEvent.roomId } ?: return
 
 		// update existing room
 		found.title = chatEvent.room!!.title
 		found.private = chatEvent.room!!.private
-		
+
 		found.users.forEach { user ->
 			val room = user.connectedRooms.first { it.roomId == found.roomId }
-			
+
 			room.title = found.title
 			room.private = found.private
 		}
@@ -294,7 +295,7 @@ class DaoVerticle(private val eventBus: EventBus) : AbstractVerticle() {
 			return
 
 		if (room.users.find { it.userGuid == chatEvent.user!!.userGuid } == null)
-		room.users.add(chatEvent.user!!)
+			room.users.add(chatEvent.user!!)
 
 		// add this room to user's connected rooms
 		val user = users.find { it.userGuid == chatEvent.user!!.userGuid }!!
@@ -323,7 +324,7 @@ class DaoVerticle(private val eventBus: EventBus) : AbstractVerticle() {
 
 	override fun stop(stopFuture: Future<Void>) {
 		// unregister consumers for empty UUID
-		
+
 		for (i: Int in consumerMap[""]?.count()?.rangeTo(0) ?: IntRange(0, 0)) {
 			consumerMap[""]?.elementAt(i)?.unregister()
 			consumerMap[""]?.removeAt(i)

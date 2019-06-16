@@ -15,60 +15,28 @@ class ChatServiceImpl(private val vertx: Vertx) : ChatProviderGrpc.ChatProviderI
 	// server-side streaming
 	override fun listen(request: StringMessage?, responseObserver: StreamObserver<ChatEvent>?) {
 		// users
-		listenUsers(responseObserver)
+		listenUsers(request!!.value, responseObserver)
 
 		// rooms
 		listenRooms(responseObserver)
 
 		// messages
-		listenChatChanges(request!!.value, responseObserver)
+		listenChatChanges(request.value, responseObserver)
 	}
-
-	// override fun getMessages(request: StringMessage?, responseObserver: StreamObserver<ChatChange>?) {
-	// 	val consumer = eventBus.consumer<ChatChangeModel>(Constants.Dao.ClientChatChange(request!!.value))
-	//
-	// 	consumer.handler {
-	// 		try {
-	// 			responseObserver!!.onNext(it.body().convert())
-	// 		} catch (ex: StatusRuntimeException) {
-	// 			consumer.unregister()
-	// 		}
-	// 	}
-	// }
-	//
-	// override fun getRooms(request: Empty?, responseObserver: StreamObserver<Room>?) {
-	// 	println("Creating rooms hook")
-	//
-	// 	// stream existing rooms
-	// 	eventBus.send<ArrayList<RoomModel>>(Constants.Dao.GetRooms, "") {
-	// 		it.result().body()
-	// 			.forEach { room ->
-	// 				responseObserver!!.onNext(room.convert())
-	// 			}
-	// 	}
-	//
-	// 	// stream upcoming rooms
-	// 	val consumer = eventBus.consumer<RoomModel>(Constants.Dao.RoomAdded)
-	// 	consumer.handler {
-	// 		try {
-	// 			responseObserver!!.onNext(it.body().convert())
-	// 			println("Sent new room to user")
-	// 		} catch (ex: StatusRuntimeException) {
-	// 			consumer.unregister()
-	// 		}
-	// 	}
-	// }
 
 	override fun createRoom(request: NewRoomRequest?, responseObserver: StreamObserver<Room>?) {
 		println("Creating room")
 		eventBus.send<RoomModel>(Constants.Dao.AddRoom,
 			NewRoomRequestModel().parseFrom(request!!)
 		) {
-			responseObserver!!
-				.onNext(
-					it.result().body().convert()
-				)
-			responseObserver.onCompleted()
+			if (it.succeeded()) {
+				responseObserver!!
+					.onNext(
+						it.result().body().convert()
+					)
+				responseObserver.onCompleted()
+			} else
+				responseObserver!!.onError(Error(it.cause().message))
 		}
 	}
 
@@ -91,7 +59,6 @@ class ChatServiceImpl(private val vertx: Vertx) : ChatProviderGrpc.ChatProviderI
 				eventBus.send<ArrayList<MessageModel>>(
 					Constants.Dao.GetMessages,
 					joinRoomRequestModel.roomId) {
-					// todo: send message to corresponding consumers
 					it.result()
 						.body()
 						.map {
@@ -104,7 +71,7 @@ class ChatServiceImpl(private val vertx: Vertx) : ChatProviderGrpc.ChatProviderI
 							return@map messageChatEvent
 						}
 						.forEach {
-							eventBus.publish(Constants.Dao.ClientChatChange(newUserChatEvent.user!!.userGuid), it)
+							eventBus.publish(Constants.Dao.ChatChange(newUserChatEvent.user!!.userGuid), it)
 						}
 
 					responseObserver!!.onNext(Status.newBuilder()
@@ -121,7 +88,7 @@ class ChatServiceImpl(private val vertx: Vertx) : ChatProviderGrpc.ChatProviderI
 
 		val parsedMessage = MessageModel().parseFrom(request!!)
 		parsedMessage.sent = Date().time
-		
+
 		println("Message parsed")
 		val chatChangeModel = ChatEventModel()
 		chatChangeModel.change = TheChange.NEW
@@ -140,8 +107,26 @@ class ChatServiceImpl(private val vertx: Vertx) : ChatProviderGrpc.ChatProviderI
 		}
 	}
 
-	private fun listenUsers(responseObserver: StreamObserver<ChatEvent>?) {
+	private fun listenUsers(userGuid: String, responseObserver: StreamObserver<ChatEvent>?) {
 		println("Users streaming is not implemented yet")
+
+		// get existing
+		eventBus.send<ArrayList<UserModel>>(Constants.Dao.GetVisibleUsers, userGuid) {
+			if (it.failed()) {
+				responseObserver!!.onError(Error(it.cause().message))
+			} else {
+				val response = ChatEventModel()
+				response.change = TheChange.EXISTING
+				response.valueCase = ChatEvent.ValueCase.USER
+				
+				it.result().body().forEach {
+					response.user = it
+					responseObserver!!.onNext(response.convert())
+				}
+			}
+		}
+		
+		// note: upcoming users are streamed over chat changes.. 
 	}
 
 	private fun listenRooms(responseObserver: StreamObserver<ChatEvent>?) {
@@ -160,7 +145,7 @@ class ChatServiceImpl(private val vertx: Vertx) : ChatProviderGrpc.ChatProviderI
 				}
 		}
 
-		// stream upcoming rooms
+		// listen for upcoming
 		val newRoomResponse = ChatEvent.newBuilder()
 			.setChange(TheChange.NEW)
 		val consumer = eventBus.consumer<RoomModel>(Constants.Dao.RoomAdded)
@@ -180,14 +165,14 @@ class ChatServiceImpl(private val vertx: Vertx) : ChatProviderGrpc.ChatProviderI
 
 	private fun listenChatChanges(userGuid: String, responseObserver: StreamObserver<ChatEvent>?) {
 		// todo: send existing messages & users
-		
+
 		val consumer = eventBus.consumer<ChatEventModel>(
-			Constants.Dao.ClientChatChange(userGuid)
+			Constants.Dao.ChatChange(userGuid)
 		)
 
 		consumer.handler {
 			println("Room Id of ChatEvent before send: ${it.body().roomId}")
-			
+
 			try {
 				responseObserver!!.onNext(it.body().convert())
 			} catch (ex: StatusRuntimeException) {

@@ -32,13 +32,13 @@ class Constants {
 	
 	class Dao {
 		companion object {
-			val ClientChatChange = { id: String ->
+			val ChatChange = { id: String ->
 				"user.$id.chat-change"
 			}
 			
 			const val GetMessages = "chat-dao.get-messages"
-			const val GetClients = "chat-dao.get-users"
-			const val GetClientsForRoom = "chat-dao.get-users-for-room"
+			const val GetUsers = "chat-dao.get-users"
+			const val GetVisibleUsers = "chat-dao.visible-users"
 			const val GetClient = "chat-dao.get-user"
 			const val GetRooms = "chat-dao.get-rooms"
 			const val GetRoom = "chat-dao.get-room"
@@ -48,7 +48,8 @@ class Constants {
 			const val AddRoom = "chat-dao.add-room"
 			
 			const val RoomAdded = "chat-dao.room-added"
-			const val ClientChanged = "chat-dao.user-changed"
+			const val UserAdded = "chat-dao.user-added"
+			const val UserJoined = "chat-dao.user-added"
 		}
 	}
 }

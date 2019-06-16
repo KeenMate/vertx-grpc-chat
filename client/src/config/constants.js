@@ -1,4 +1,5 @@
 export const HostAddress = 'http://localhost:8090'
+//'http://api.chat.km-ubu-001.serv.keenmate.com'
 
 export const VueWindowsStorageKey = 'vertx-chat-tabs'
 export const BroadcastChannelName = 'VertxChatBroadcast'

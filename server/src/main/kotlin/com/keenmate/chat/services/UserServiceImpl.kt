@@ -34,41 +34,4 @@ class UserServiceImpl(vertx: Vertx) : UserProviderGrpc.UserProviderImplBase() {
 
 		super.disconnect(request, responseObserver)
 	}
-
-	// override fun getUsers(request: Empty?, responseObserver: StreamObserver<UserChange>?) {
-	// 	// stream existing users
-	// 	println("Sending existing users")
-	// 	eventBus.send<ArrayList<UserModel>>(Constants.Dao.GetClients, Unit) {
-	// 		println("Received users from EB")
-	// 		val result = UserChange.newBuilder()
-	// 			.setChange(TheChange.EXISTING)
-	//
-	// 		it.result().body()
-	// 			.forEach {
-	// 				println("Sending existing user ${it.name} to response stream")
-	//
-	// 				responseObserver!!.onNext(
-	// 					result
-	// 						.setUser(it.convert())
-	// 						.build()
-	// 				)
-	//
-	// 				println("Existing user to response stream sent")
-	// 			}
-	// 	}
-	//
-	// 	// listen for upcoming changes
-	// 	val changeConsumer = eventBus.consumer<UserChangeModel>(Constants.Dao.ClientChanged)
-	//
-	// 	changeConsumer.handler {
-	// 		println("About to send user change")
-	// 		try {
-	// 			println("Sending change in users")
-	// 			responseObserver!!.onNext(it.body().convert())
-	// 		} catch (ex: StatusRuntimeException) {
-	// 			println("There is no one on the other side of response stream")
-	// 			changeConsumer.unregister()
-	// 		}
-	// 	}
-	// }
 }

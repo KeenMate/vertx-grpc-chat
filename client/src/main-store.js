@@ -168,7 +168,7 @@ export default {
 				commit('setIsMaster', isMaster)
 				commit('setIsInitialized', isInitialized)
 				commit('setSharedState', sharedState)
-				
+
 				resolve()
 			})
 		},
@@ -183,7 +183,7 @@ export default {
 					state.userProvider.connect(connectRequest, {}, (err, data) => {
 						if (err) {
 							console.error(err)
-							
+
 							reject(err)
 							return
 						}
@@ -198,7 +198,7 @@ export default {
 				.postMessage(
 					new BroadcastMessage(ChatAddress.LogIn, credentials)
 				)
-				
+
 				return Promise.resolve()
 			}
 		},
@@ -230,7 +230,7 @@ export default {
 
 					const parsed = response.toObject(true)
 					commit('addRoom', parsed)
-					
+
 					return Promise.resolve(parsed)
 				})
 			}
@@ -272,7 +272,7 @@ export default {
 				communicationStore.channel.postMessage(
 					new BroadcastMessage(ChatAddress.JoinRoom, roomId)
 				)
-				
+
 				return Promise.resolve(roomId)
 			} else {
 				if (!state.chatProvider || !(state[MasterSlaveDataKey].sharedState || {}).user) {
@@ -289,7 +289,7 @@ export default {
 					const parsed = response.toObject(false)
 					if (err || !parsed.isok) {
 						console.error(err || parsed.errormessage)
-						
+
 						return Promise.reject(err)
 					}
 
@@ -301,9 +301,19 @@ export default {
 				})
 			}
 		},
-		roomJoined({commit}, roomId) {
+		roomJoined({commit, state}, roomId) {
 			commit('addConnectedRoom', roomId)
 			commit('setCurrentRoom', roomId)
+
+			if (state[MasterSlaveDataKey].isMaster)
+				state[MasterSlaveDataKey]
+				.channel
+				.postMessage(
+					new BroadcastMessage(
+						ChatAddress.RoomJoined,
+						roomId
+					)
+				)
 		}
 	}
 }

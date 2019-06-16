@@ -9,13 +9,13 @@
 		</div>
 		<div class="message-box ui grid">
 			<div class="ui row">
-				<div class="twelve wide column">
-					<input type="text" v-model="newMsgContent" @keypress.enter="onSendClick">
-				</div>
-				<div class="four wide column">
-					<button class="ui button" @click="onSendClick">
-						Send
-					</button>
+				<div class="sixteen wide column">
+					<div class="ui fluid action input">
+						<input type="text" v-model="newMsgContent" @keypress.enter="onSendClick">
+						<button class="ui button" @click="onSendClick">
+							Send
+						</button>
+					</div>
 				</div>
 			</div>
 		</div>

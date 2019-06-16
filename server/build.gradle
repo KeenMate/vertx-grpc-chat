@@ -38,6 +38,7 @@ application {
 	mainClassName = 'io.vertx.core.Launcher'
 }
 
+sourceCompatibility = '1.8'
 
 def mainVerticleName = 'com.keenmate.chat.verticles.MainVerticle'
 def watchForChange = 'src/**/*'

@@ -50,7 +50,7 @@ class ChatEventModel : IModel<ChatEvent> {
 				roomId = src.roomId
 			}
 			ChatEvent.ValueCase.MESSAGE -> message = MessageModel().parseFrom(src.message)
-			ChatEvent.ValueCase.VALUE_NOT_SET -> TODO()
+			ChatEvent.ValueCase.VALUE_NOT_SET -> { }
 		}
 		
 		return this
